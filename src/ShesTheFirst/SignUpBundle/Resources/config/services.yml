@@ -1,4 +1,8 @@
 parameters:
+    shes_the_first_sign_up:
+      facebook:
+        app_id: ~
+        secret: ~
 #    shes_the_first_sign_up.example.class: ShesTheFirst\SignUpBundle\Example
 
 services:
