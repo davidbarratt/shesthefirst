@@ -1,0 +1,7 @@
+parameters:
+#    shes_the_first_sign_up.example.class: ShesTheFirst\SignUpBundle\Example
+
+services:
+#    shes_the_first_sign_up.example:
+#        class: %shes_the_first_sign_up.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]

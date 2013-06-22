@@ -1,0 +1,4 @@
+shes_the_first_sign_up:
+    resource: "@ShesTheFirstSignUpBundle/Resources/config/routing.yml"
+    prefix:   /
+
