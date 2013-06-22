@@ -3,11 +3,34 @@
     <head>
         <meta charset="UTF-8" />
         <title>{% block title %}Welcome!{% endblock %}</title>
+        {% stylesheets 
+          '../app/Resources/public/css/*'
+        %}
+          <link rel="stylesheet" href="{{ asset_url }}" />
+        {% endstylesheets %}
+        <link href="//fonts.googleapis.com/css?family=Ubuntu:400,400italic,700,700italic" rel="stylesheet" type="text/css" />
         {% block stylesheets %}{% endblock %}
         <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" />
     </head>
     <body>
-        {% block body %}{% endblock %}
+        <div class="body">
+          {% block body %}
+              <header>
+                <div id="logo">
+                  {% block logo %}
+                    {% image '../app/Resources/public/images/stf_ucf.png' %}
+                      <img src="{{ asset_url }}" class="us" alt="She's the First - UCF" />
+                    {% endimage %}
+                  {% endblock %}
+                </div>
+              </header>
+              <section class="page">
+                {% block page %}
+                
+                {% endblock%}
+              </section>
+          {% endblock %}
+        </div>
         {% block javascripts %}{% endblock %}
     </body>
 </html>

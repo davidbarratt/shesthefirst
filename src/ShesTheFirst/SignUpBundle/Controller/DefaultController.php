@@ -2,12 +2,22 @@
 
 namespace ShesTheFirst\SignUpBundle\Controller;
 
+use ShesTheFirst\SignUpBundle\Entity\Facebook;
+
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 class DefaultController extends Controller
 {
     public function indexAction()
     {
+        
+        $login_url = NULL;
+        $logout_url = NULL;
+        $facebook_user = NULL;
+        $user_profile = array();
+        $applications = array();
+        $signups = FALSE;
+        $admin = FALSE;
         
         $facebook = new \Facebook(array(
           'appId'  => $this->container->getParameter('shes_the_first_sign_up.facebook.app_id'),
@@ -25,22 +35,96 @@ class DefaultController extends Controller
             $user = null;
           }
         }
-        
-        if ($user) {
-          try {
-            // Proceed knowing you have a logged in user who's authenticated.
-            print '<pre>'.print_r($facebook->api('/268106193299574/likes'), TRUE).'</pre>';
-          } catch (FacebookApiException $e) {
-            print $e->getMessage();
-          }
-        }
                 
-        // print '<pre>'.print_r($facebook->getAccessToken(), TRUE).'</pre>';
+        if ($user) {
         
-        print '<pre>'.print_r($user, TRUE).'</pre>';
+          $repository = $this->getDoctrine()->getRepository('ShesTheFirstSignUpBundle:Facebook');
         
-        print '<pre>'.print_r($facebook->getLoginUrl(array('scope' => 'email')), TRUE).'</pre>';
+          $facebook_user = $repository->find($user);
+              
+          if (!$facebook_user) {
+          
+            $facebook_user = new Facebook();
+            $facebook_user->setId($user);
+            
+            $created = new \DateTime('now', new \DateTimeZone('UTC'));
+          
+            $facebook_user->setCreated($created);
+            
+          }
+          
+          $facebook_user->setUsername($user_profile['username']);
+          $facebook_user->setFirstName($user_profile['first_name']);
+          $facebook_user->setLastName($user_profile['last_name']);
+          $facebook_user->setEmail($user_profile['email']);
+          
+          $updated = new \DateTime('now', new \DateTimeZone('UTC'));
+          
+          $facebook_user->setUpdated($updated);
+          
+          $facebook_user->setAccessToken($facebook->getAccessToken());
+      
+          $em = $this->getDoctrine()->getManager();
+          $em->persist($facebook_user);
+          $em->flush();
+          
+          $params = array(
+            'next' => $this->generateUrl('shes_the_first_sign_up_logout', array(), true),
+          );
+          
+          $logout_url = $facebook->getLogoutUrl($params);
+          
+          try {
+            $applications = $facebook->api(array(
+               'method' => 'fql.query',
+               'query' => 'SELECT application_id, role FROM developer WHERE developer_id = '.$user,
+            ));
+          } catch (FacebookApiException $e) {
+            error_log($e);
+          }
+                              
+          foreach ($applications as $application) {
+            if ($application['application_id'] == '137801623089103') {
+              $admin = TRUE;
+              break;
+            }
+          }
+          
+          if ($admin) {
+            $signups = $repository->findBy(
+                array(),
+                array('created' => 'DESC')
+            );
+          }
+          
+        }
+        else {       
+          $login_url = $facebook->getLoginUrl(array('scope' => 'email'));
+        }
         
-        return $this->render('ShesTheFirstSignUpBundle:Default:index.html.twig');
+        $params = array(
+          'user' => $facebook_user,
+          'admin' => $admin,
+          'signups' => $signups,
+          'login_url' => $login_url,
+          'logout_url' => $logout_url,
+        );
+        
+        return $this->render('ShesTheFirstSignUpBundle:Default:index.html.twig', $params);
     }
+    
+    public function logoutAction()
+    {
+        
+        $facebook = new \Facebook(array(
+          'appId'  => $this->container->getParameter('shes_the_first_sign_up.facebook.app_id'),
+          'secret' => $this->container->getParameter('shes_the_first_sign_up.facebook.secret'),
+        ));
+        
+        $facebook->destroySession();
+        
+        return $this->redirect($this->generateUrl('shes_the_first_sign_up_homepage'));
+      
+    }
+    
 }
