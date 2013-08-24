@@ -1,8 +1,8 @@
 {
-    "name": "symfony/framework-standard-edition",
-    "license": "MIT",
+    "name": "davidbarratt/shesthefirst",
+    "license": "GPL-2.0",
     "type": "project",
-    "description": "The \"Symfony Standard Edition\" distribution",
+    "description": "She's The First Signup Page",
     "autoload": {
         "psr-0": { "": "src/" }
     },
