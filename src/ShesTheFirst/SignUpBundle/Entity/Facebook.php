@@ -3,6 +3,7 @@
 namespace ShesTheFirst\SignUpBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use ShesTheFirst\SignUpBundle\Entity\Contact;
 
 /**
  * Facebook
@@ -12,11 +13,20 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Facebook
 {
+    
     /**
      * @var integer
      *
-     * @ORM\Column(name="facebook_id", type="bigint")
+     * @ORM\OneToOne(targetEntity="Contact")
+     * @ORM\JoinColumn(name="contact_id", referencedColumnName="contact_id")
      * @ORM\Id
+     */
+    private $contact;
+    
+    /**
+     * @var integer
+     *
+     * @ORM\Column(name="facebook_id", type="bigint", unique=true)
      */
     private $id;
     
@@ -26,41 +36,6 @@ class Facebook
      *  @ORM\Column(type="string", length=255, nullable=true)
      */
     private $username;
-    
-    /**
-     * @var string
-     *
-     *  @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $first_name;
-    
-    /**
-     * @var string
-     *
-     *  @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $last_name;
-    
-    /**
-     * @var string
-     *
-     *  @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $email;
-    
-    /**
-     * @var DateTime
-     *
-     * @ORM\Column(type="datetime")
-     */
-    private $created;
-    
-    /**
-     * @var DateTime
-     *
-     * @ORM\Column(type="datetime")
-     */
-    private $updated;
     
     /**
      * @var string
@@ -106,97 +81,28 @@ class Facebook
     
         return $this;
     }
-
+    
     /**
-     * Set username
+     * Set contact
      *
-     * @param string $username
+     * @param ShesTheFirst\SignUpBundle\Entity\Contact $contact
      * @return Facebook
      */
-    public function setUsername($username)
+    public function setContact(Contact $contact = null)
     {
-        $this->username = $username;
+        $this->contact = $contact;
     
         return $this;
     }
 
     /**
-     * Get username
+     * Get user
      *
-     * @return string 
+     * @return ShesTheFirst\SignUpBundle\Entity\Contact 
      */
-    public function getUsername()
+    public function getContact()
     {
-        return $this->username;
-    }
-
-    /**
-     * Set first_name
-     *
-     * @param string $firstName
-     * @return Facebook
-     */
-    public function setFirstName($firstName)
-    {
-        $this->first_name = $firstName;
-    
-        return $this;
-    }
-
-    /**
-     * Get first_name
-     *
-     * @return string 
-     */
-    public function getFirstName()
-    {
-        return $this->first_name;
-    }
-
-    /**
-     * Set last_name
-     *
-     * @param string $lastName
-     * @return Facebook
-     */
-    public function setLastName($lastName)
-    {
-        $this->last_name = $lastName;
-    
-        return $this;
-    }
-
-    /**
-     * Get last_name
-     *
-     * @return string 
-     */
-    public function getLastName()
-    {
-        return $this->last_name;
-    }
-
-    /**
-     * Set email
-     *
-     * @param string $email
-     * @return Facebook
-     */
-    public function setEmail($email)
-    {
-        $this->email = $email;
-    
-        return $this;
-    }
-
-    /**
-     * Get email
-     *
-     * @return string 
-     */
-    public function getEmail()
-    {
-        return $this->email;
+        return $this->contact;
     }
 
     /**
@@ -232,30 +138,6 @@ class Facebook
     public function setCreated($created)
     {
         $this->created = $created;
-    
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
-    }
-    
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return Facebook
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
     
         return $this;
     }
