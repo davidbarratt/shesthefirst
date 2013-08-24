@@ -15,6 +15,7 @@ class DefaultController extends Controller
         $login_url = NULL;
         $logout_url = NULL;
         $facebook_user = NULL;
+        $contact = NULL;
         $user_profile = array();
         $applications = array();
         $signups = FALSE;
@@ -100,12 +101,14 @@ class DefaultController extends Controller
               break;
             }
           }
-                    
+                              
           if ($admin) {
+          
             $signups = $contact_repository->findBy(
                 array(),
                 array('created' => 'DESC')
             );
+            
           }
           
         }
