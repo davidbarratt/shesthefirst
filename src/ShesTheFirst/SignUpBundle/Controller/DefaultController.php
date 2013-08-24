@@ -2,6 +2,7 @@
 
 namespace ShesTheFirst\SignUpBundle\Controller;
 
+use ShesTheFirst\SignUpBundle\Entity\Contact;
 use ShesTheFirst\SignUpBundle\Entity\Facebook;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
@@ -38,9 +39,10 @@ class DefaultController extends Controller
                 
         if ($user) {
         
-          $repository = $this->getDoctrine()->getRepository('ShesTheFirstSignUpBundle:Facebook');
+          $facebook_repository = $this->getDoctrine()->getRepository('ShesTheFirstSignUpBundle:Facebook');
+          $contact_repository = $this->getDoctrine()->getRepository('ShesTheFirstSignUpBundle:Contact');
         
-          $facebook_user = $repository->find($user);
+          $facebook_user = $facebook_repository->findOneBy(array('id' => $user));
               
           if (!$facebook_user) {
           
@@ -48,23 +50,32 @@ class DefaultController extends Controller
             $facebook_user->setId($user);
             
             $created = new \DateTime('now', new \DateTimeZone('UTC'));
-          
-            $facebook_user->setCreated($created);
             
+            $contact = new Contact();
+          
+            $contact->setCreated($created);
+            
+          }
+          else {
+            $contact = $facebook_user->getContact();
           }
           
           $facebook_user->setUsername($user_profile['username']);
-          $facebook_user->setFirstName($user_profile['first_name']);
-          $facebook_user->setLastName($user_profile['last_name']);
-          $facebook_user->setEmail($user_profile['email']);
+          $contact->setFirstName($user_profile['first_name']);
+          $contact->setLastName($user_profile['last_name']);
+          $contact->setEmail($user_profile['email']);
           
           $updated = new \DateTime('now', new \DateTimeZone('UTC'));
           
-          $facebook_user->setUpdated($updated);
+          $contact->setUpdated($updated);
           
           $facebook_user->setAccessToken($facebook->getAccessToken());
+          
+          $facebook_user->setContact($contact);
       
           $em = $this->getDoctrine()->getManager();
+          $em->persist($contact);
+          $em->flush();
           $em->persist($facebook_user);
           $em->flush();
           
@@ -89,9 +100,9 @@ class DefaultController extends Controller
               break;
             }
           }
-          
+                    
           if ($admin) {
-            $signups = $repository->findBy(
+            $signups = $contact_repository->findBy(
                 array(),
                 array('created' => 'DESC')
             );
@@ -104,6 +115,7 @@ class DefaultController extends Controller
         
         $params = array(
           'user' => $facebook_user,
+          'contact' => $contact,
           'admin' => $admin,
           'signups' => $signups,
           'login_url' => $login_url,

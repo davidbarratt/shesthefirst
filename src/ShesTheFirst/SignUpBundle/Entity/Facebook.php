@@ -44,43 +44,6 @@ class Facebook
      */
     private $access_token;
 
-
-    /**
-     * Get id
-     *
-     * @return integer 
-     */
-    public function getId()
-    {
-        return $this->id;
-    }
-    
-    /**
-     * Set id
-     *
-     * @param int $id
-     * @return Facebook 
-     */
-    public function settId($id)
-    {
-        $this->id = $id;
-        
-        return $this;
-    }
-    
-
-    /**
-     * Set id
-     *
-     * @param integer $id
-     * @return Facebook
-     */
-    public function setId($id)
-    {
-        $this->id = $id;
-    
-        return $this;
-    }
     
     /**
      * Set contact
@@ -103,6 +66,53 @@ class Facebook
     public function getContact()
     {
         return $this->contact;
+    }
+    
+    /**
+     * Get id
+     *
+     * @return integer 
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+    
+
+    /**
+     * Set id
+     *
+     * @param integer $id
+     * @return Facebook
+     */
+    public function setId($id)
+    {
+        $this->id = $id;
+    
+        return $this;
+    }
+    
+    /**
+     * Set username
+     *
+     * @param string $username
+     * @return Facebook
+     */
+    public function setUsername($username)
+    {
+        $this->username = $username;
+    
+        return $this;
+    }
+
+    /**
+     * Get username
+     *
+     * @return string 
+     */
+    public function getUsername()
+    {
+        return $this->username;
     }
 
     /**
@@ -127,28 +137,6 @@ class Facebook
     {
         return $this->access_token;
     }
-    
 
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return Facebook
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-    
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
 }
+    

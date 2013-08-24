@@ -21,12 +21,12 @@
             <div class="signup">
             
               <div class="avatar">
-                <a href="http://www.facebook.com/{{ signup.id }}">
-                 <img src="https://graph.facebook.com/{{ signup.id }}/picture?width=100&amp;height=100" alt="" />
+                <a href="http://www.facebook.com/{{ signup.facebook.id }}">
+                 <img src="https://graph.facebook.com/{{ signup.facebook.id }}/picture?width=100&amp;height=100" alt="" />
                 </a>
               </div>
               <div class="card">
-                <h2><a href="http://www.facebook.com/{{ signup.id }}">{{ signup.firstname }} {{ signup.lastname }}</a></h2>
+                <h2><a href="http://www.facebook.com/{{ signup.facebook.id }}">{{ signup.firstname }} {{ signup.lastname }}</a></h2>
                 <a href="mailto:{{ signup.email }}">{{ signup.email }}</a>
               </div>
             
@@ -40,7 +40,7 @@
     
       <div class="user">
       
-        <h2>Thanks {{ user.firstname }}!</h2>
+        <h2>Thanks {{ contact.firstname }}!</h2>
         
         <p>Don't forget to like <strong>She's the First</strong> on Facebook</p>
         
