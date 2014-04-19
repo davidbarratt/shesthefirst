@@ -1,6 +1,11 @@
 shes_the_first_sign_up_homepage:
     pattern:  /
     defaults: { _controller: ShesTheFirstSignUpBundle:Default:index }
+    
+shes_the_first_sign_up_signup:
+    pattern:  /signup
+    defaults: { _controller: ShesTheFirstSignUpBundle:Default:signup }
+    methods:  [POST]
 
 shes_the_first_sign_up_logout:
     pattern:  /logout

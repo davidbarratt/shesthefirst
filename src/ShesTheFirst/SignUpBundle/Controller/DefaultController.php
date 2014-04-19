@@ -4,6 +4,8 @@ namespace ShesTheFirst\SignUpBundle\Controller;
 
 use ShesTheFirst\SignUpBundle\Entity\Contact;
 use ShesTheFirst\SignUpBundle\Entity\Facebook;
+use ShesTheFirst\SignUpBundle\Form\Model\Signup;
+use ShesTheFirst\SignUpBundle\Form\Type\SignupType;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
@@ -20,6 +22,8 @@ class DefaultController extends Controller
         $applications = array();
         $signups = FALSE;
         $admin = FALSE;
+        
+        $form = $this->createForm(new SignupType(), new Signup());
         
         $facebook = new \Facebook(array(
           'appId'  => $this->container->getParameter('shes_the_first_sign_up.facebook.app_id'),
@@ -123,6 +127,7 @@ class DefaultController extends Controller
           'signups' => $signups,
           'login_url' => $login_url,
           'logout_url' => $logout_url,
+          'form' => $form->createView(),
         );
         
         return $this->render('ShesTheFirstSignUpBundle:Default:index.html.twig', $params);

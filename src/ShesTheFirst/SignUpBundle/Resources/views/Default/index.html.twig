@@ -9,7 +9,17 @@
         </a>
       </div>
     {% endimage %}
+    
+     <div class="form">
+        <form class="signup" action="{{ path('shes_the_first_sign_up_signup') }}" method="post" {{ form_enctype(form) }}>
+          {{ form_widget(form) }}
+          <input class="submit" type="submit" value="Respond" />
+        </form>
+      </div>
+    
   {% endif %}
+  
+  
   {% if user %}
   
     {% if admin %}
