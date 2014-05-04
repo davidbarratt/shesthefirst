@@ -1,0 +1,50 @@
+name = "Flexible Forms"
+description = "Build forms based on multiple entities."
+core = 7.x
+
+dependencies[] = entity
+dependencies[] = views
+
+files[] = flexiform_submission.admin.inc
+files[] = flexiform_submission.entity.inc
+files[] = flexiform.admin.inc
+files[] = flexiform.entity.inc
+files[] = includes/flexiform.flexiform.inc
+
+; Displays
+files[] = includes/flexiform.display.inc
+files[] = includes/display/null.display.inc
+files[] = includes/display/page.display.inc
+files[] = includes/display/add_page.display.inc
+files[] = includes/display/edit_page.display.inc
+files[] = includes/display/edit_pane.display.inc
+files[] = includes/display/user_category.display.inc
+
+; Builders
+files[] = includes/flexiform.builder.inc
+files[] = includes/builder/flexiform.builder.inc
+files[] = includes/builder/entity_form.builder.inc
+
+; Elements
+files[] = includes/flexiform.element.inc
+files[] = includes/flexiform.element_repeatable.inc
+files[] = includes/element/flexiform.element.inc
+files[] = includes/element/field.element.inc
+files[] = includes/element/node_title.element.inc
+files[] = includes/element/node_promote.element.inc
+files[] = includes/element/node_status.element.inc
+files[] = includes/element/node_sticky.element.inc
+files[] = includes/element/custom_html.element.inc
+
+; Plugins and Views
+files[] = includes/views/handlers/flexiform_handler_field_add_page_url.inc
+files[] = includes/views/handlers/flexiform_handler_field_tags.inc
+files[] = includes/views/handlers/flexiform_handler_filter_tags.inc
+
+
+; Information added by Drupal.org packaging script on 2014-03-28
+version = "7.x-1.0-beta7"
+core = "7.x"
+project = "flexiform"
+datestamp = "1396031944"
+
