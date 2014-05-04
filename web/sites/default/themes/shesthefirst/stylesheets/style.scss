@@ -1,0 +1,47 @@
+/* Welcome to Compass.
+ * In this file you should write your main styles. (or centralize your imports)
+ * Import this file using the following HTML or equivalent:
+ * <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css" /> */
+
+@import "bootstrap";
+
+body {
+  background-color: #F3FCFC;
+  font-family: 'Ubuntu',sans-serif;
+}
+
+#page-wrapper {
+  margin: 0 auto;
+  width: 20em;
+  padding: 0 0 2em;
+}
+
+#logo {
+  img {
+    width: 100%;
+    height: auto;
+  }
+}
+
+#page .messages {
+  @extend .alert;
+  background-image: none;
+  &.status {
+    @extend .alert-success;
+  }
+  &.warning {
+    @extend .alert-warning;
+  }
+  &.error {
+    @extend .alert-danger;
+  }
+}
+
+input {
+  @extend .form-control;
+}
+
+input[type="submit"] {
+  @extend .btn;
+  @extend .btn-default;
+}
