@@ -48,11 +48,9 @@ function shesthefirst_preprocess_page(&$variables) {
   $variables['title_suffix'] = array();
 
   // Remove the Sidebars.
+  $variables['page']['highlighted'] = array();
   $variables['page']['sidebar_first'] = array();
   $variables['page']['sidebar_second'] = array();
-
-  // Remove the Footer.
-  $variables['page']['footer'] = array();
 
 }
 
