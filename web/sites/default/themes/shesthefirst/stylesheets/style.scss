@@ -23,18 +23,63 @@ body {
   }
 }
 
-#page .messages {
-  @extend .alert;
-  background-image: none;
-  &.status {
-    @extend .alert-success;
+#page {
+
+  .messages {
+    @extend .alert;
+    background-image: none;
+    &.status {
+      @extend .alert-success;
+    }
+    &.warning {
+      @extend .alert-warning;
+    }
+    &.error {
+      @extend .alert-danger;
+    }
   }
-  &.warning {
-    @extend .alert-warning;
+
+  .tabs.primary {
+    @extend .nav;
+    @extend .nav-tabs;
+    border-collapse: none;
+    margin: 0 0 1em 0;
+
+    li a {
+      background-color: transparent;
+    }
+
   }
-  &.error {
-    @extend .alert-danger;
+
+  .menu {
+    @extend .nav;
+    @extend .nav-pills;
+    @extend .nav-justified;
+
+    li > a:hover,
+    li > a:focus,
+    li > a:active {
+      background: none;
+    }
+
   }
+
+}
+
+.name-given-wrapper {
+  width: 40%;
+}
+
+.name-family-wrapper {
+  width: 48%;
+}
+
+.container-inline-date .date-padding {
+  padding: 6px 2px;
+}
+
+.field-type-name .form-item {
+  margin: 0;
 }
 
 input {
@@ -44,4 +89,27 @@ input {
 input[type="submit"] {
   @extend .btn;
   @extend .btn-default;
+  font-size: 1.2em;
+  height: auto;
+}
+
+label {
+  font-weight: normal;
+}
+
+.page-node .field-name-body {
+  font-size: 1.5em;
+}
+
+#main-wrapper {
+  margin-bottom: 1.5em;
+
+  .region-content {
+    font-size: 1.2em;
+  }
+
+}
+
+#footer {
+  font-size: 0.8em;
 }
