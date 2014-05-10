@@ -1,0 +1,115 @@
+/* Welcome to Compass.
+ * In this file you should write your main styles. (or centralize your imports)
+ * Import this file using the following HTML or equivalent:
+ * <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css" /> */
+
+@import "bootstrap";
+
+body {
+  background-color: #F3FCFC;
+  font-family: 'Ubuntu',sans-serif;
+}
+
+#page-wrapper {
+  margin: 0 auto;
+  width: 20em;
+  padding: 0 0 2em;
+}
+
+#logo {
+  img {
+    width: 100%;
+    height: auto;
+  }
+}
+
+#page {
+
+  .messages {
+    @extend .alert;
+    background-image: none;
+    &.status {
+      @extend .alert-success;
+    }
+    &.warning {
+      @extend .alert-warning;
+    }
+    &.error {
+      @extend .alert-danger;
+    }
+  }
+
+  .tabs.primary {
+    @extend .nav;
+    @extend .nav-tabs;
+    border-collapse: none;
+    margin: 0 0 1em 0;
+
+    li a {
+      background-color: transparent;
+    }
+
+  }
+
+  .menu {
+    @extend .nav;
+    @extend .nav-pills;
+    @extend .nav-justified;
+
+    li > a:hover,
+    li > a:focus,
+    li > a:active {
+      background: none;
+    }
+
+  }
+
+}
+
+.name-given-wrapper {
+  width: 40%;
+}
+
+.name-family-wrapper {
+  width: 48%;
+}
+
+.container-inline-date .date-padding {
+  padding: 6px 2px;
+}
+
+.field-type-name .form-item {
+  margin: 0;
+}
+
+input {
+  @extend .form-control;
+}
+
+input[type="submit"] {
+  @extend .btn;
+  @extend .btn-default;
+  font-size: 1.2em;
+  height: auto;
+}
+
+label {
+  font-weight: normal;
+}
+
+.page-node .field-name-body {
+  font-size: 1.5em;
+}
+
+#main-wrapper {
+  margin-bottom: 1.5em;
+
+  .region-content {
+    font-size: 1.2em;
+  }
+
+}
+
+#footer {
+  font-size: 0.8em;
+}

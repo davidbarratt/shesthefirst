@@ -1,0 +1,8 @@
+name = She's the First*{UCF}
+description = Custom Theme for Basic Data Collection
+core = 7.x
+
+stylesheets[all][] = stylesheets/compiled/style.css
+
+regions[content] = Content
+regions[footer] = Footer

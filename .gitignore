@@ -1,10 +1,15 @@
-/web/bundles/
-/web/error_log
-/app/bootstrap.php.cache
-/app/cache/*
-/app/config/parameters.yml
-/app/logs/*
-/build/
-/vendor/
-/bin/
-/composer.phar
+# Configuration files that may contain sensitive information.
+web/sites/*/settings*.php
+
+# Paths that contain user-generated content.
+web/sites/*/files
+web/sites/*/private
+
+# Vendor Folder
+web/sites/all/vendor
+
+# Sass Cache
+.sass-cache
+
+# Compiled Stylesheets
+compiled
