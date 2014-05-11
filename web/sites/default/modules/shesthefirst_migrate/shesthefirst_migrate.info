@@ -1,0 +1,9 @@
+name = She's the First Migration
+description = "Import She's the First Legacy Data"
+package = "Development"
+core = 7.x
+
+dependencies[] = migrate
+
+files[] = shesthefirst_migrate.migrate.inc
+files[] = contact.inc
