@@ -174,11 +174,12 @@ class FlexiformUIController extends EntityDefaultUIController {
    * Overrides hook_menu() defaults.
    */
   public function hook_menu() {
+    $wildcard = '%flexiform';
     $items = parent::hook_menu();
     $items[$this->path]['description'] = 'Manage flexiforms, including adding
 		and removing fields and the display of fields.';
-
-    $wildcard = '%flexiform';
+    // Change the way they clone things.
+    $items["{$this->path}/manage/%entity_object/clone"]['page callback'] = 'flexiform_ui_get_clone_form';
 
     // Tags autocomplete pages.
     $items["{$this->path}/autocomplete_tags"] = array(
@@ -252,12 +253,29 @@ class FlexiformUIController extends EntityDefaultUIController {
       'access arguments' => array('administer flexiforms'),
     );
 
+    $items["{$this->path}/manage/{$wildcard}/form-entities/%"] = array(
+      'title' => 'Configure',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('flexiform_entity_configure_form', 4, 6),
+      'type' => MENU_CALLBACK,
+      'weight' => 3,
+      'file' => 'flexiform.admin.inc',
+      'file path' => drupal_get_path('module', 'flexiform'),
+      'access arguments' => array('administer flexiforms'),
+    );
+
+    $items["{$this->path}/manage/{$wildcard}/form-entities/%/configure"] = array(
+      'title' => 'Configure',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => 3,
+    );
+
     $items["{$this->path}/manage/{$wildcard}/form-entities/%/remove"] = array(
       'title' => 'Remove',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('flexiform_entity_remove_form', 4, 6),
-      'type' => MENU_CALLBACK,
-      'weight' => 3,
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 4,
       'file' => 'flexiform.admin.inc',
       'file path' => drupal_get_path('module', 'flexiform'),
       'access arguments' => array('administer flexiforms'),
@@ -375,7 +393,11 @@ function flexiform_add_for_entity($entity_type, $bundle) {
  * Generates the model type editing form.
  */
 function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
+  $form['#flexiform'] = $flexiform;
+
   if ($op == 'clone') {
+    $form['#cloned_from'] = $flexiform->cloned_from;
+
     $flexiform->label .= ' (cloned)';
     $flexiform->form = '';
   }
@@ -421,7 +443,7 @@ function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
       'wrapper' => 'flexiform-base-entity-bundle-selector',
       'callback' => 'flexiform_form_base_entity_bundle_selector',
     ),
-    '#disabled' => empty($flexiform->is_new) || !empty($form_state['fix_entity_bundle']),
+    '#disabled' => empty($flexiform->is_new) || !empty($form_state['fix_entity_bundle']) || $op == 'clone',
   );
 
   if (isset($form_state['values']['base_entity'])) {
@@ -463,7 +485,7 @@ function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
       'wrapper' => 'flexiform-builder-selector',
       'callback' => 'flexiform_form_builder_selector',
     ),
-    '#disabled' => empty($flexiform->is_new) || !empty($form_state['fix_entity_bundle']),
+    '#disabled' => empty($flexiform->is_new) || !empty($form_state['fix_entity_bundle']) || $op == 'clone',
   );
 
   if (isset($form_state['values']['base_entity_bundle'])) {
@@ -502,6 +524,7 @@ function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
     '#required' => TRUE,
     '#prefix' => '<div id="flexiform-builder-selector">',
     '#suffix' => '</div>',
+    '#disabled' => $op == 'clone',
   );
 
   $form['form_group'] = array(
@@ -648,6 +671,8 @@ function flexiform_form_submit(&$form, &$form_state) {
   if (empty($form_state['redirect'])) {
     $form_state['redirect'] = 'admin/structure/flexiforms';
   }
+
+  $form['#flexiform'] = $flexiform;
 }
 
 /**
@@ -1009,10 +1034,41 @@ function flexiform_field_remove_form_submit($form, &$form_state) {
 /**
  * Choose a widget type
  */
-function flexiform_field_widget_type_form($form, &$form_state, $flexiform, $element) {
-  $form['temp']['#markup'] = 'Temporary';
+function flexiform_field_widget_type_form($form, &$form_state, $flexiform, $element_namespace) {
+  $element = FlexiformElement::getElement($flexiform, $element_namespace);
+
+  form_load_include($form_state, 'inc', 'field_ui', 'field_ui.admin');
+  $form = field_ui_widget_type_form($form, $form_state, $element->getInstance());
+
+  $form['#flexiform_element'] = $element;
+  $form['#flexiform'] = $flexiform;
+
+  $form['#submit'] = array('flexiform_field_widget_type_form_submit');
 
   return $form;
+}
+
+/**
+ * Submit callback for the widget type form.
+ */
+function flexiform_field_widget_type_form_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
+  $flexiform = $form['#flexiform'];
+  $element = $form['#flexiform_element'];
+
+  // Set the right module information.
+  $widget_type = field_info_widget_types($form_values['widget_type']);
+  $widget_module = $widget_type['module'];
+
+  $instance = &$flexiform->elements[$element->getElementNamespace()]['instance'];
+  $instance['widget']['type'] = $form_values['widget_type'];
+  $instance['widget']['module'] = $widget_module;
+  $flexiform->save();
+
+  // Set a message.
+  drupal_set_message(t('The configuration has been saved.'));
+
+  $form_state['redirect'] = 'admin/structure/flexiforms/manage/' . $flexiform->form . '/form-fields';
 }
 
 /**
@@ -1852,4 +1908,112 @@ function theme_flexiform_ui_overview_item($variables) {
  */
 function flexiform_form_submit_rebuild($form, &$form_state) {
   $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Form to Configure a Flexiform Entity.
+ */
+function flexiform_entity_configure_form($form, &$form_state, $flexiform, $entity_namespace) {
+  $form['#flexiform'] = $flexiform;
+  $handler = $flexiform->getBuilder()->getEntityManager()
+    ->getEntityHandler($entity_namespace);
+  $form['#form_entity'] = $handler;
+  $form += $handler->configForm($form, $form_state);
+
+  return $form;
+}
+
+/**
+ * Validation Handler.
+ */
+function flexiform_entity_configure_form_validate($form, &$form_state) {
+  $form['#form_entity']->configFormValidate($form, $form_state);
+}
+
+/**
+ * Submit handler.
+ */
+function flexiform_entity_configure_form_submit($form, &$form_state) {
+  $form['#form_entity']->configFormSubmit($form, $form_state);
+
+  drupal_set_message(t('The configuration has been updated.'));
+  $form_state['redirect'] = "admin/structure/flexiforms/manage/{$form['#flexiform']->form}/form-entities";
+}
+
+/**
+ * Form callback for removing entities.
+ */
+function flexiform_entity_remove_form($form, &$form_state, $flexiform, $entity_namespace) {
+  $form['#flexiform'] = $flexiform;
+  $form['#entity_namespace'] = $entity_namespace;
+  $manager = $flexiform->getBuilder()->getEntityManager();
+  $dependants = $manager->checkForDependants($entity_namespace);
+  $settings = $manager->getEntitySettings($entity_namespace);
+  if ($entity_namespace == 'base_entity') {
+    $form['message']['#markup'] = t('Cannot remove the base entity of a form.');
+  }
+  else if (!empty($dependants)) {
+    $dependantList = array(
+      '#theme' => 'item_list',
+      '#items' => $dependants,
+    );
+    $args = array(
+      '%this' => $settings['label'],
+      '!dependants' => drupal_render($dependantList),
+    );
+    $form['message']['#markup'] = t('Cannot remove %this as the following entities depend on it. Remove these entities first. !dependants', $args);
+  }
+  else {
+    $form['message']['#markup'] = t('Are you sure you want to remove %this from the form?', array('%this' => $settings['label']));
+
+    $form['actions'] = array(
+      '#type' => 'actions',
+    );
+
+    $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Remove'),
+    );
+  }
+
+  return $form;
+}
+
+/**
+ * Form submit for removing entities.
+ */
+function flexiform_entity_remove_form_submit($form, &$form_state) {
+  $flexiform = $form['#flexiform'];
+  $entity_namespace = $form['#entity_namespace'];
+  $flexiform->getBuilder()->getEntityManager()->removeEntitySettings($entity_namespace);
+
+  $form_state['redirect'] = "admin/structure/flexiforms/manage/{$flexiform->form}/form-entities";
+}
+
+/**
+ * Clone form page callback.
+ */
+function flexiform_ui_get_clone_form($entity_type, $entity, $op = 'clone', $form_state = array()) {
+  $form_id = 'flexiform_form';
+
+  // Do not use drupal_get_form(), but invoke drupal_build_form() ourself so
+  // we can prepulate the form state.
+  $form_state['wrapper_callback'] = 'entity_ui_main_form_defaults';
+  $form_state['entity_type'] = 'flexiform';
+  form_load_include($form_state, 'inc', 'entity', 'includes/entity.ui');
+
+  $entity = clone $entity;
+  $entity->id = FALSE;
+  $entity->cloned_from = $entity->form;
+  $entity->form = FALSE;
+  $entity->is_new = TRUE;
+  $entity->status = ENTITY_CUSTOM;
+
+  // We don't pass the entity type as first parameter, as the implementing
+  // module knows the type anyway. However, in order to allow for efficient
+  // hook_forms() implementiations we append the entity type as last argument,
+  // which the module implementing the form constructor may safely ignore.
+  // @see entity_forms()
+  $form_state['build_info']['args'] = array($entity, $op, $entity_type);
+  return drupal_build_form($form_id, $form_state);
 }

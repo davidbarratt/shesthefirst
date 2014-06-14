@@ -94,8 +94,14 @@ input[type="submit"] {
 }
 
 label {
-  font-weight: normal;
+  font-weight: 700;
 }
+
+.form-item .description {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
 
 .page-node .field-name-body {
   font-size: 1.5em;
