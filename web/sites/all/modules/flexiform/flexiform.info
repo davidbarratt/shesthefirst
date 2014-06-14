@@ -17,6 +17,7 @@ files[] = includes/display/null.display.inc
 files[] = includes/display/page.display.inc
 files[] = includes/display/add_page.display.inc
 files[] = includes/display/edit_page.display.inc
+files[] = includes/display/add_pane.display.inc
 files[] = includes/display/edit_pane.display.inc
 files[] = includes/display/user_category.display.inc
 
@@ -36,15 +37,28 @@ files[] = includes/element/node_status.element.inc
 files[] = includes/element/node_sticky.element.inc
 files[] = includes/element/custom_html.element.inc
 
+; Form Entities
+files[] = includes/flexiform.form_entity.inc
+files[] = includes/form_entity/base.form_entity.inc
+files[] = includes/form_entity/current_user.form_entity.inc
+files[] = includes/form_entity/entityreference.form_entity.inc
+files[] = includes/form_entity/field_collection.form_entity.inc
+files[] = includes/form_entity/legacy.form_entity.inc
+files[] = includes/form_entity/party_data_set.form_entity.inc
+files[] = includes/form_entity/party_from_user.form_entity.inc
+
+; Form Entity Manager
+files[] = includes/flexiform.form_entity_manager.inc
+
 ; Plugins and Views
 files[] = includes/views/handlers/flexiform_handler_field_add_page_url.inc
 files[] = includes/views/handlers/flexiform_handler_field_tags.inc
 files[] = includes/views/handlers/flexiform_handler_filter_tags.inc
 
 
-; Information added by Drupal.org packaging script on 2014-03-28
-version = "7.x-1.0-beta7"
+; Information added by Drupal.org packaging script on 2014-05-19
+version = "7.x-1.0-rc1"
 core = "7.x"
 project = "flexiform"
-datestamp = "1396031944"
+datestamp = "1400522032"
 
