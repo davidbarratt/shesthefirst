@@ -1,11 +1,9 @@
-# Configuration files that may contain sensitive information.
-web/sites/*/settings*.php
-
 # Paths that contain user-generated content.
-web/sites/*/files
-web/sites/*/private
+private/
+tmp/
 
 # Vendor Folder
+vendor
 web/sites/all/vendor
 
 # Sass Cache
