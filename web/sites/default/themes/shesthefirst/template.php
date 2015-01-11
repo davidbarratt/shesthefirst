@@ -6,7 +6,7 @@
 function shesthefirst_preprocess_html(&$variables) {
 
   // Add the Google Fonts.
-  $url = '//fonts.googleapis.com/css?family=Ubuntu:400,700,400italic,700italic';
+  $url = '//fonts.googleapis.com/css?family=Ubuntu:400,500,700,400italic,700italic';
   $options = array(
     'type' => 'external',
   );

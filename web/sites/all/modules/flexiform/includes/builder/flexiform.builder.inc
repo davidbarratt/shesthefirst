@@ -10,12 +10,47 @@
 class FlexiformBuilderFlexiform extends FlexiformBuilder {
 
   /**
+   * The Entity Manager for this form.
+   * @var FlexiformFormEntityManagerInterface
+   */
+  protected $entityManager;
+
+  /**
+   * Get the entity manager.
+   *
+   * @return FlexiformFormEntityManagerInterface
+   *   The entity manager for this form builder.
+   */
+  public function getEntityManager() {
+    if (!empty($this->entityManager)) {
+      return $this->entityManager;
+    }
+
+    $this->entityManager = new FlexiformFormEntityManagerDefault($this->flexiform->entities, $this);
+    $this->entityManager->setBaseEntity($this->base_entity);
+    return $this->entityManager;
+  }
+
+  /**
+   * Get a form entity.
+   *
+   * @param $namespace
+   *  The namespace of the entity required.
+   *
+   * @return
+   *  The entity with that namespace.
+   */
+  public function getFormEntity($namespace) {
+    return $this->getEntityManager()->getEntity($namespace);
+  }
+
+  /**
    * Build the form for this flexiform.
    */
   public function form($form, &$form_state) {
     $form = parent::form($form, $form_state);
 
-    $form['#flexiform_entities'] = flexiform_prepare_entities($this->flexiform, $this->base_entity);
+    $form['#flexiform_entities'] = $this->getEntityManager()->getEntities();
 
     // Set up our form bits
     if (!isset($form['#parents'])) {
@@ -26,11 +61,14 @@ class FlexiformBuilderFlexiform extends FlexiformBuilder {
     foreach ($this->flexiform->elements as $element_namespace => $settings) {
       $element = FlexiformElement::getElement($this->flexiform, $element_namespace);
 
+      // Don't show form elements for entities that don't exist.
+      if (!$this->getFormEntity($element->getEntityNamespace())) {
+        continue;
+      }
+
       // Make sure this element has the correct parents.
       array_push($form['#parents'], $element->getEntityNamespace());
-
-      $form += $element->form($form, $form_state, $form['#flexiform_entities'][$element->getEntityNamespace()]);
-
+      $form += $element->form($form, $form_state, $this->getFormEntity($element->getEntityNamespace()));
       array_pop($form['#parents']);
     }
 
@@ -49,7 +87,7 @@ class FlexiformBuilderFlexiform extends FlexiformBuilder {
       }
 
       $element = $form[$element_namespace]['#flexiform_element'];
-      $entity = $form['#flexiform_entities'][$element->getEntityNamespace()];
+      $entity = $this->getFormEntity($element->getEntityNamespace());
       $element->formValidate($form, $form_state, $entity);
     }
 
@@ -68,29 +106,13 @@ class FlexiformBuilderFlexiform extends FlexiformBuilder {
       }
 
       $element = $form[$element_namespace]['#flexiform_element'];
-      $entity = $form['#flexiform_entities'][$element->getEntityNamespace()];
+      $entity = $this->getFormEntity($element->getEntityNamespace());
       $element->formSubmit($form, $form_state, $entity);
     }
 
     $this->invoke($form, $form_state, 'submit');
 
-    foreach ($flexiform->entities as $entity_namespace => $settings) {
-      if (isset($settings['getter'])) {
-        $getter = flexiform_entity_getter_info($settings['getter']);
-
-        if (isset($getter['file']) && file_exists(drupal_get_path('module', $getter['module']) . '/' . $getter['file'])) {
-          include_once drupal_get_path('module', $getter['module']) . '/' . $getter['file'];
-        }
-
-        $callback = $getter['setter callback'];
-        if (function_exists($callback)) {
-          $base_entity = $form['#flexiform_base_entity'];
-          $entity = $form['#flexiform_entities'][$entity_namespace];
-          $entities = $form['#flexiform_entities'];
-          $callback($flexiform, $base_entity, $entity, $settings['entity_type'], $entities, $entity_namespace, $getter);
-        }
-      }
-    }
+    $this->getEntityManager()->saveEntities();
 
     if (module_exists('rules')) {
       $base_entity_wrapper = entity_metadata_wrapper($flexiform->base_entity, $form['#flexiform_base_entity']);

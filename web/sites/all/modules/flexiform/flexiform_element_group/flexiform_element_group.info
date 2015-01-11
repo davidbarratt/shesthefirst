@@ -5,9 +5,9 @@ core = 7.x
 dependencies[] = flexiform
 dependencies[] = field_group
 
-; Information added by Drupal.org packaging script on 2014-03-28
-version = "7.x-1.0-beta7"
+; Information added by Drupal.org packaging script on 2014-05-19
+version = "7.x-1.0-rc1"
 core = "7.x"
 project = "flexiform"
-datestamp = "1396031944"
+datestamp = "1400522032"
 
