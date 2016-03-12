@@ -25,13 +25,10 @@ class CRMCoreContactEntity extends Entity {
    * hook_crm_core_contact_match. This function should implement it's
    * own contact matching scheme.
    *
-   * @param CRMCoreContactEntity $entity
-   *   CRM Core Contact
-   *
    * @return array
-   *   Array of matched contacts.
+   *   Array of matched contact IDs.
    */
-  public function match(CRMCoreContactEntity $entity) {
+  public function match() {
 
     $checks = & drupal_static(__FUNCTION__);
     $matches = array();
@@ -46,7 +43,7 @@ class CRMCoreContactEntity extends Entity {
     // This will allow various matching tools to modify the contact
     // and the list of matches.
     $values = array(
-      'contact' => &$entity,
+      'contact' => &$this,
       'matches' => &$matches,
     );
     foreach ($checks->engines as $module) {
@@ -92,7 +89,9 @@ class CRMCoreContactController extends EntityAPIController {
    * Update contact object before saving revision.
    */
   protected function saveRevision($entity) {
-    $entity->log = '';
+    if (!isset($entity->log)) {
+      $entity->log = '';
+    }
     $entity->is_new_revision = TRUE;
     $entity->uid = $GLOBALS['user']->uid;
 
@@ -102,9 +101,11 @@ class CRMCoreContactController extends EntityAPIController {
   /**
    * Updates 'changed' property on save.
    */
-  public function save($entity) {
-    $entity->changed = REQUEST_TIME;
+  public function save($contact) {
+    $contact->changed = REQUEST_TIME;
+    // Storing formatted contact label for autocomplete lookups.
+    $contact->name = $contact->label();
 
-    return parent::save($entity);
+    return parent::save($contact);
   }
 }

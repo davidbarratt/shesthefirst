@@ -14,14 +14,14 @@ function crm_core_relationship_install() {
   $relation_types_info = array(
     array(
       'relation_type' => 'crm_friend',
-      'label' => $t('Friend of'),
+      'label' => $t('is friends with'),
       'source_bundles' => array('crm_core_contact:individual'),
       'r_unique' => TRUE,
     ),
     array(
       'relation_type' => 'crm_employee',
-      'label' => $t('Employee of'),
-      'reverse_label' => $t('Employer of'),
+      'label' => $t('works for'),
+      'reverse_label' => $t('employs'),
       'directional' => TRUE,
       'r_unique' => TRUE,
       'source_bundles' => array('crm_core_contact:individual'),
@@ -29,8 +29,8 @@ function crm_core_relationship_install() {
     ),
     array(
       'relation_type' => 'crm_member',
-      'label' => $t('Member of'),
-      'reverse_label' => $t('Household for'),
+      'label' => $t('is a member of'),
+      'reverse_label' => $t('has member'),
       'directional' => TRUE,
       'r_unique' => TRUE,
       'source_bundles' => array('crm_core_contact:individual'),

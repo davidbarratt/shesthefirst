@@ -28,6 +28,7 @@ function crm_core_user_sync_uninstall() {
 
   variable_del('crm_core_user_sync_rules');
   variable_del('crm_core_user_sync_auto_sync_user_create');
+  variable_del('crm_core_user_sync_auto_sync_user_match');
 }
 
 /**

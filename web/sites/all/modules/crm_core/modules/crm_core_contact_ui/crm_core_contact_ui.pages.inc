@@ -67,11 +67,7 @@ function crm_core_contact_ui_form($form, &$form_state, $contact) {
   $form_state['crm_core_contact'] = $contact;
   field_attach_form('crm_core_contact', $contact, $form, $form_state);
 
-  $form['actions'] = array(
-    '#type' => 'container',
-    '#attributes' => array('class' => array('form-actions')),
-    '#weight' => 40,
-  );
+  $form['actions'] = array('#type' => 'actions');
 
   // We add the form's #submit array to this button along with the actual submit
   // handler to preserve any submit handlers added by a form callback_wrapper.
@@ -88,7 +84,7 @@ function crm_core_contact_ui_form($form, &$form_state, $contact) {
   );
 
   // Show delete button if entity exists and user has appropriate permission
-  if (!empty($contact->contact_id) && entity_access('delete', 'crm_core_contact', $contact->contact_id)) {
+  if (!empty($contact->contact_id) && entity_access('delete', 'crm_core_contact', $contact)) {
     $form['actions']['delete'] = array(
       '#type' => 'submit',
       '#value' => t('Delete'),

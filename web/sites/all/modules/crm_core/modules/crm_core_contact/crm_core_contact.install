@@ -28,6 +28,22 @@ function crm_core_contact_install() {
   $household->name = $t('Household');
   $household->description = $t('A collection of individuals generally located at the same residence.');
   crm_core_contact_type_save($household);
+
+  crm_core_contact_default_label_format_install();
+}
+
+/**
+ * Create custom name format to be used as contact label.
+ */
+function crm_core_contact_default_label_format_install() {
+  $t = get_t();
+  db_insert('name_custom_format')
+    ->fields(array(
+      'name' => $t('CRM Core Contact label format'),
+      'machine_name' => 'crm_core_contact_label_format',
+      'format' => '((((t+ig)+im)+if)+is)+jc',
+    ))
+    ->execute();
 }
 
 /**
@@ -96,10 +112,18 @@ function crm_core_contact_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'name' => array(
+        'description' => 'Plain text contact name used in DB queries. Updated on contact update.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
     ),
     'indexes' => array(
       'created' => array('created'),
       'changed' => array('changed'),
+      'contact_name' => array('name'),
     ),
     'foreign keys' => array(
       'contact_revision' => array(
@@ -313,4 +337,61 @@ function crm_core_contact_update_7005() {
     _crm_core_contact_check_uuid();
     uuid_sync_all();
   }
+}
+
+/**
+ * Add "name" field to "crm_core_contact" table.
+ */
+function crm_core_contact_update_7006(&$sandbox) {
+  $t = get_t();
+  $msgs = array();
+  if (!db_field_exists('crm_core_contact', 'name')) {
+    $field_schema = array(
+      'description' => 'Plain text contact name used in DB queries. Updated on contact update.',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    );
+    $new_keys = array(
+      'indexes' => array(
+        'contact_name' => array('name'),
+      ),
+    );
+    db_add_field('crm_core_contact', 'name', $field_schema, $new_keys);
+    $msgs[] = $t('Field "name" was successfully added to "crm_core_contact" table.');
+  }
+  crm_core_contact_default_label_format_install();
+
+  // Processing existing contacts.
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current'] = 0;
+    $sandbox['total'] = db_query('SELECT COUNT(contact_id) FROM {crm_core_contact}')->fetchField();
+
+    if (empty($sandbox['total'])) {
+      $msgs[] = $t('No contact records to update.');
+      return implode(' ', $msgs);
+    }
+  }
+
+  $contact_ids = db_select('crm_core_contact', 'c')
+    ->fields('c', array('contact_id'))
+    ->condition('contact_id', $sandbox['current'], '>')
+    ->range(0, 10)
+    ->orderBy('contact_id', 'ASC')
+    ->execute()
+    ->fetchCol();
+
+  foreach ($contact_ids as $contact_id) {
+    $contact = crm_core_contact_load($contact_id);
+    $contact->save();
+    $sandbox['progress']++;
+    $sandbox['current'] = $contact->identifier();
+  }
+  $msgs[] = $t('Updated @count contact records.', array('@count' => count($contact_ids)));
+
+  $sandbox['#finished'] = empty($sandbox['total']) ? 1 : ($sandbox['progress'] / $sandbox['total']);
+
+  return implode(' ', $msgs);
 }

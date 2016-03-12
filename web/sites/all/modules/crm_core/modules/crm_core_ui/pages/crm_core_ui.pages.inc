@@ -81,7 +81,9 @@ function crm_core_ui_admin_config_form($form, &$form_state) {
   $themes_list = list_themes();
   $options = array();
   foreach ($themes_list as $name => $theme_description) {
-    $options[$name] = $theme_description->info['name'];
+    if (!empty($theme_description->status)) {
+      $options[$name] = $theme_description->info['name'];
+    }
   }
   $form['theme']['crm_core_theme_settings']['crm_core_theme'] = array(
     '#type' => 'select',
@@ -165,5 +167,5 @@ function crm_core_ui_admin_config_form_submit($form, &$form_state) {
     }
     variable_set('crm_core_dashboard_enabled', FALSE);
   }
-  menu_rebuild();
+  variable_set('menu_rebuild_needed', TRUE);
 }

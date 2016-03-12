@@ -222,7 +222,7 @@ class CRMFeedsActivityProcessor extends FeedsProcessor {
     $targets += array(
       'title' => array(
         'name' => t('Title'),
-        'description' => t('The title of the CRM Activity.'),
+        'description' => t('The title of the CRM Core Activity.'),
         'optional_unique' => TRUE,
       ),
       'activity_id' => array(
