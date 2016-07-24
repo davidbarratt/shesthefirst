@@ -287,7 +287,7 @@ function crm_core_relationship_ui_field_formatter_view($entity_type, $entity, $f
 
       return array(
         array(
-          '#markup' => t('!current_contact is a @relation !related_contact', array(
+          '#markup' => t('!current_contact @relation !related_contact', array(
             '!current_contact' => $current_contact_link,
             '@relation' => $relation_label,
             '!related_contact' => $related_contact_link,

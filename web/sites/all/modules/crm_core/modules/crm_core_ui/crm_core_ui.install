@@ -15,5 +15,5 @@ function crm_core_ui_install() {
     menu_save($menu);
   }
   // Rebuild menu so Activity Types menu element will be placed under CRM.
-  menu_rebuild();
+  variable_set('menu_rebuild_needed', TRUE);
 }

@@ -6,7 +6,7 @@
  */
 
 /**
- * CRM Activity Entity Class.
+ * CRM Core Activity Entity Class.
  */
 class CRMCoreActivityEntity extends Entity {
   protected function defaultLabel() {
@@ -24,7 +24,7 @@ class CRMCoreActivityEntity extends Entity {
 }
 
 /**
- * Controller class for CRM Activity.
+ * Controller class for CRM Core Activity.
  */
 class CRMCoreActivityController extends EntityAPIController {
   public function create(array $values = array()) {
@@ -36,6 +36,12 @@ class CRMCoreActivityController extends EntityAPIController {
     );
 
     return parent::create($values);
+  }
+
+  public function save($activity) {
+    $activity->changed = time();
+
+    return parent::save($activity);
   }
 
   /**
@@ -70,7 +76,7 @@ class CRMActivityType extends Entity {
 }
 
 /**
- * Controller class for CRM Activity Type.
+ * Controller class for CRM Core Activity Type.
  */
 class CRMCoreActivityTypeController extends EntityAPIControllerExportable {
   public function create(array $values = array()) {
@@ -83,31 +89,24 @@ class CRMCoreActivityTypeController extends EntityAPIControllerExportable {
 
     return parent::create($values);
   }
+}
+
+/**
+ * CRMCoreActivityTypeFeaturesController class.
+ */
+class CRMCoreActivityTypeFeaturesController extends EntityDefaultFeaturesController {
 
   /**
-   * Implements EntityAPIControllerInterface.
-   *
-   * @param array $ids
-   *   List of IDs.
-   * @param object $transaction
-   *   Optionally a DatabaseTransaction object to use. Allows overrides to pass
-   *   in their transaction object.
+   * Overridden to prevent data loss on activity type delete.
    */
-  public function delete($ids, DatabaseTransaction $transaction = NULL) {
-    // Delete all instances of the given type.
-    $query = new EntityFieldQuery();
-    $results = $query
-      ->entityCondition('entity_type', 'crm_core_activity')
-      ->entityCondition('bundle', $ids, 'IN')
-      ->execute();
-
-    if (!empty($results)) {
-      $activities_to_remove = array_keys($results['crm_core_activity']);
-      crm_core_activity_delete_multiple($activities_to_remove);
-      watchdog('crm_core_activity', 'Delete !count activities due to deletion of activity type.', array('!count' => count($activities_to_remove)), WATCHDOG_INFO);
+  public function revert($module = NULL) {
+    if ($defaults = features_get_default($this->type, $module)) {
+      foreach ($defaults as $name => $activity_type) {
+        db_delete('crm_core_activity_type')
+          ->condition('type', $name)
+          ->execute();
+        crm_core_activity_type_save($activity_type);
+      }
     }
-
-    // Finally delete the type itself.
-    return parent::delete($ids, $transaction);
   }
 }

@@ -76,6 +76,12 @@ class FlexiformFormEntityManagerDefault implements FlexiformFormEntityManagerInt
   protected $builder;
 
   /**
+   * An array of callbacks keyed by $type and $entity_namespace
+   * @var array
+   */
+  protected $callbacks = array();
+
+  /**
    * The entity settings keyed by entity namespace.
    * @var array
    */
@@ -99,6 +105,13 @@ class FlexiformFormEntityManagerDefault implements FlexiformFormEntityManagerInt
   protected $base_entity_key = '';
 
   /**
+   * An array of booleans keyed by namespace of entities to skip on save.
+   *
+   * @var bool[]
+   */
+  protected $skip_save = array();
+
+  /**
    * Build and instance of this entity manager.
    *
    * @param array $settings
@@ -114,7 +127,6 @@ class FlexiformFormEntityManagerDefault implements FlexiformFormEntityManagerInt
    */
   public function setBaseEntity($entity, $namespace = 'base_entity') {
     $this->entities[$namespace] = $entity;
-    $this->prepared[$namespace] = TRUE;
     $this->base_entity_key = $namespace;
     return $this;
   }
@@ -151,8 +163,8 @@ class FlexiformFormEntityManagerDefault implements FlexiformFormEntityManagerInt
 
     // If this is the base entity and its not prepared we must throw an error
     // as without a base entity set nothing is going to work.
-    if ($namespace === $this->base_entity_key) {
-      throw new Exception(t('Cannot Prepare Base Entity, this must be set using setBaseEntity.'));
+    if (empty($this->entities[$this->base_entity_key])) {
+      throw new Exception(t('Cannot Prepare Entities without the base entity being set, this must be set using setBaseEntity.'));
     }
 
     $info = $this->getEntitySettings($namespace);
@@ -298,14 +310,80 @@ class FlexiformFormEntityManagerDefault implements FlexiformFormEntityManagerInt
   }
 
   /**
+   * Mark an entity to be skipped or not on save.
+   *
+   * @param string $namespace
+   *   The namespace of the entity to skip.
+   * @param bool $skip
+   *   Whether to skip this entity on save.
+   */
+  public function skipOnSave($namespace, $skip) {
+    $this->skip_save[$namespace] = $skip;
+  }
+
+  /**
    * Save Entities.
    */
   public function saveEntities() {
     foreach ($this->entitySettings as $namespace => $info) {
+      // Allow forms to skip saving particular entities.
+      if (!empty($this->skip_save[$namespace])) {
+        continue;
+      }
+
       if ($handler = $this->getEntityHandler($namespace)) {
+        $this->executeCallbacks('preSave', $namespace);
         $handler->saveEntity($this->getEntity($namespace));
+        $this->executeCallbacks('postSave', $namespace);
       }
     }
+
+    // Reset the skip entities.
+    $this->skip_save = array();
+  }
+
+  /**
+   * Execute Save Callbacks.
+   *
+   * Save callbacks can be registered against an entity_namespace to be run
+   * just after (post) or just before (pre) an entity is saved. If an entity is
+   * skipped for whatever reason these callbacks do not run.
+   *
+   * @param string $type
+   *   The type of callback to fire, either 'postSave' or 'preSave'
+   * @param string $namespace
+   *   The namespace of the entity.
+   */
+  public function executeCallbacks($type, $namespace) {
+    if (empty($this->callbacks[$type][$namespace])) {
+      return;
+    }
+
+    foreach ($this->callbacks[$type][$namespace] as $callback) {
+      array_unshift($callback['extra_args'], $this->getEntity($namespace));
+      call_user_func_array($callback['callback'], $callback['extra_args']);
+    }
+  }
+
+  /**
+   * Register a Callback
+   *
+   * Register callbacks to be run at certain times by the entity manager.
+   *
+   * @param string $type
+   *   The type of callback to fire, either 'post' or 'pre'
+   * @param string $namespace
+   *   The namespace of the entity.
+   * @param callable $callback
+   *   The callback to fire.
+   * @param array $extra
+   *   Array of extra arguments to pass to the callback.
+   */
+  public function registerCallback($type, $namespace, $callback, $extra = array()) {
+    $this->callbacks[$type][$namespace][] = array(
+      'callback' => $callback,
+      'extra_args' => $extra,
+    );
   }
 
   /**

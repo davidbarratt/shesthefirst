@@ -38,32 +38,6 @@ class CRMCoreContactTypeController extends EntityAPIControllerExportable {
   }
 
   /**
-   * Implements EntityAPIControllerInterface.
-   *
-   * @param @ids array of IDs
-   * @param $transaction
-   *   Optionally a DatabaseTransaction object to use. Allows overrides to pass
-   *   in their transaction object.
-   */
-  public function delete($ids, DatabaseTransaction $transaction = NULL) {
-    // Delete all instances of the given type.
-    $query = new EntityFieldQuery;
-    $results = $query
-      ->entityCondition('entity_type', 'crm_core_contact')
-      ->entityCondition('bundle', $ids, 'IN')
-      ->execute();
-
-    if (!empty($results)) {
-      $contacts_to_remove = array_keys($results['crm_core_contact']);
-      crm_core_contact_delete_multiple($contacts_to_remove);
-      watchdog('crm_core_contact', 'Delete !count contacts due to deletion of contact type.', array('!count' => count($contacts_to_remove)), WATCHDOG_INFO);
-    }
-
-    // Finally delete the type itself.
-    return parent::delete($ids, $transaction);
-  }
-
-  /**
    * Overrides a method of the EntityAPIControllerExportable class.
    */
   public function save($entity, DatabaseTransaction $transaction = NULL) {
@@ -71,5 +45,25 @@ class CRMCoreContactTypeController extends EntityAPIControllerExportable {
 
     // Reset cache entry, important for usecases like install procedure.
     drupal_static_reset('crm_core_contact_types');
+  }
+}
+
+/**
+ * CRMCoreContactTypeFeaturesController class.
+ */
+class CRMCoreContactTypeFeaturesController extends EntityDefaultFeaturesController {
+
+  /**
+   * Overridden to prevent data loss on contact type delete.
+   */
+  public function revert($module = NULL) {
+    if ($defaults = features_get_default($this->type, $module)) {
+      foreach ($defaults as $name => $contact_type) {
+        db_delete('crm_core_contact_type')
+          ->condition('type', $name)
+          ->execute();
+        crm_core_contact_type_save($contact_type);
+      }
+    }
   }
 }

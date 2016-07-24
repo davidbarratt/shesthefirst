@@ -33,7 +33,7 @@ function crm_core_activity_ui_menu() {
         'page callback' => 'crm_core_activity_entity_ui_get_form_wrapper',
         'page arguments' => ($key == 'contact' ? array(2, 5) : array(NULL, 3)),
         'access callback' => 'entity_access',
-        'access arguments' => array('create', 'crm_core_activity', 5),
+        'access arguments' => array('create', 'crm_core_activity', ($key == 'contact' ? 5 : 3)),
         'type' => MENU_NORMAL_ITEM,
         'file' => 'crm_core_activity_ui.pages.inc',
       );

@@ -58,6 +58,7 @@ function crm_core_activity_ui_views_default_views() {
   $handler->display->display_options['fields']['activity_id']['exclude'] = TRUE;
   $handler->display->display_options['fields']['activity_id']['element_label_colon'] = FALSE;
   $handler->display->display_options['fields']['activity_id']['hide_alter_empty'] = FALSE;
+  $handler->display->display_options['fields']['activity_id']['separator'] = '';
   /* Field: CRM Contact: Contact ID */
   $handler->display->display_options['fields']['contact_id']['id'] = 'contact_id';
   $handler->display->display_options['fields']['contact_id']['table'] = 'crm_core_contact';
@@ -92,7 +93,7 @@ function crm_core_activity_ui_views_default_views() {
   $handler->display->display_options['fields']['nothing_3']['alter']['text'] = 'Delete';
   $handler->display->display_options['fields']['nothing_3']['alter']['make_link'] = TRUE;
   $handler->display->display_options['fields']['nothing_3']['alter']['path'] = 'crm-core/contact/[contact_id]/activity/[activity_id]/delete?destination=crm-core/contact/[contact_id]/activity';
-  /* Field: CRM Activity: Date */
+  /* Field: CRM Core Activity: Date */
   $handler->display->display_options['fields']['field_activity_date']['id'] = 'field_activity_date';
   $handler->display->display_options['fields']['field_activity_date']['table'] = 'field_data_field_activity_date';
   $handler->display->display_options['fields']['field_activity_date']['field'] = 'field_activity_date';
@@ -122,7 +123,7 @@ function crm_core_activity_ui_views_default_views() {
   $handler->display->display_options['fields']['nothing']['field'] = 'nothing';
   $handler->display->display_options['fields']['nothing']['label'] = 'Operations';
   $handler->display->display_options['fields']['nothing']['alter']['text'] = '[nothing_1] [nothing_2] [nothing_3]';
-  /* Contextual filter: CRM Activity: Participants (field_activity_participants) */
+  /* Contextual filter: CRM Core Activity: Participants (field_activity_participants) */
   $handler->display->display_options['arguments']['field_activity_participants_target_id']['id'] = 'field_activity_participants_target_id';
   $handler->display->display_options['arguments']['field_activity_participants_target_id']['table'] = 'field_data_field_activity_participants';
   $handler->display->display_options['arguments']['field_activity_participants_target_id']['field'] = 'field_activity_participants_target_id';

@@ -44,6 +44,16 @@ class FlexiformUIController extends EntityDefaultUIController {
       '#default_value' => drupal_implode_tags($tags),
       '#autocomplete_path' => 'admin/structure/flexiforms/autocomplete_tags',
     );
+    $groups = flexiform_get_groups();
+    if (count($groups) > 0) {
+      $form['filter']['form_group'] = array(
+        '#title' => t('Filter by group'),
+        '#type' => 'select',
+      );
+      foreach ($groups as $group => $info) {
+        $form['filter']['form_group']['#options'][$group] = $info['label'];
+      }
+    }
     $form['filter']['submit'] = array(
       '#type' => 'submit',
       '#value' => t('Filter'),
@@ -192,15 +202,19 @@ class FlexiformUIController extends EntityDefaultUIController {
       'access arguments' => array('administer flexiforms'),
     );
 
+    $items["{$this->path}/manage/%entity_object/edit"]['context'] = MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE;
+
     $items["{$this->path}/manage/{$wildcard}/form-fields"] = array(
       'title' => 'Manage form fields',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('flexiform_manage_form_fields_form', 4),
+      'access callback' => 'flexiform_builder_admin_access',
+      'access arguments' => array(4, 'elements'),
       'type' => MENU_LOCAL_TASK,
+      'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
       'weight' => 2,
       'file' => 'flexiform.admin.inc',
       'file path' => drupal_get_path('module', 'flexiform'),
-      'access arguments' => array('administer flexiforms'),
     );
 
     $items["{$this->path}/manage/{$wildcard}/form-fields/%flexiform_formfield"] = array(
@@ -226,10 +240,11 @@ class FlexiformUIController extends EntityDefaultUIController {
       'title' => 'Widget type',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('flexiform_field_widget_type_form', 4, 6),
+      'access callback' => 'flexiform_field_widget_type_form_access',
+      'access arguments' => array(4, 6),
       'file' => 'flexiform.admin.inc',
       'file path' => drupal_get_path('module', 'flexiform'),
       'type' => MENU_LOCAL_TASK,
-      'access arguments' => array('administer flexiforms'),
     );
 
     $items["{$this->path}/manage/{$wildcard}/form-fields/%flexiform_formfield/remove"] = array(
@@ -246,11 +261,13 @@ class FlexiformUIController extends EntityDefaultUIController {
       'title' => 'Manage form entities',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('flexiform_manage_form_entities_form', 4),
+      'access callback' => 'flexiform_builder_admin_access',
+      'access arguments' => array(4, 'entities'),
       'type' => MENU_LOCAL_TASK,
+      'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
       'weight' => 3,
       'file' => 'flexiform.admin.inc',
       'file path' => drupal_get_path('module', 'flexiform'),
-      'access arguments' => array('administer flexiforms'),
     );
 
     $items["{$this->path}/manage/{$wildcard}/form-entities/%"] = array(
@@ -393,6 +410,7 @@ function flexiform_add_for_entity($entity_type, $bundle) {
  * Generates the model type editing form.
  */
 function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
+  $form_state['op'] = $op;
   $form['#flexiform'] = $flexiform;
 
   if ($op == 'clone') {
@@ -571,7 +589,7 @@ function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
 
   foreach (flexiform_display_info() as $display => $info) {
     $controller = $flexiform->getDisplay($display);
-    if (!$controller) {
+    if (get_class($controller) == 'FlexiformDisplayNull') {
       $controller = $flexiform->createDisplay($display);
     }
 
@@ -585,12 +603,45 @@ function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
     $form['displays'][$display] = $controller->configForm($displayForm, $form_state);
   }
 
+  $form['access'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Access Control'),
+    '#description' => t('Configure access control for this flexiform.'),
+  );
+
+  if ($flexiform->is_new) {
+    $form['access']['message']['#markup'] = t('You must save the flexiform before configuring access control');
+  }
+  else {
+    ctools_include('context');
+    ctools_include('context-access-admin');
+
+    $form_state['contexts'] = $flexiform->getAccessController()->prepareContexts();
+    $form_state['access'] = $flexiform->getAccessController()->getCtoolsSettings();
+    $form_state['no buttons'] = TRUE;
+    $form_state['module'] = 'flexiform';
+    $form_state['callback argument'] = $flexiform->form;
+
+    $form['access'] += ctools_access_admin_form($form['access'], $form_state);
+  }
+
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Save Flexiform'),
+    '#value' => t('Save'),
     '#weight' => 40,
   );
+  if ($op == 'add') {
+    $form['actions']['submit_entity'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save & Add Entities'),
+      '#weight' => 41,
+      '#submit' => array(
+        'flexiform_form_submit',
+        'flexiform_form_submit_entity_redirect',
+      ),
+    );
+  }
 
   // Submit Rule Actions
   // @todo: Remove dependency on rules admin by implement our own form for
@@ -608,7 +659,7 @@ function flexiform_form($form, &$form_state, $flexiform, $op = 'edit') {
     );
     $options = array(
       'show plugin' => FALSE,
-      'base path' => current_path(),
+      'base path' => 'admin/config/workflow/rules/reaction',
     );
 
     $form['rules']['active'] = rules_ui()->overviewTable($conditions, $options);
@@ -646,6 +697,13 @@ function flexiform_form_builder_selector($form, $form_state) {
 function flexiform_form_submit(&$form, &$form_state) {
   $flexiform = entity_ui_form_submit_build_entity($form, $form_state);
 
+  // Make sure access plugins don't get overridden.
+  $db_flexiform = entity_load_unchanged('flexiform', $flexiform->form);
+  $flexiform->access = $db_flexiform->access;
+
+  // Set access logic.
+  $flexiform->access['settings']['logic'] = $form_state['values']['logic'];
+
   // Sort out tags.
   $flexiform->tags = drupal_explode_tags($form_state['values']['tags']);
 
@@ -669,10 +727,22 @@ function flexiform_form_submit(&$form, &$form_state) {
 
   $flexiform->save();
   if (empty($form_state['redirect'])) {
-    $form_state['redirect'] = 'admin/structure/flexiforms';
+    if ($form_state['op'] == 'add') {
+      $form_state['redirect'] = 'admin/structure/flexiforms/manage/'.$flexiform->form.'/form-fields';
+    }
+    else {
+      $form_state['redirect'] = 'admin/structure/flexiforms';
+    }
   }
 
   $form['#flexiform'] = $flexiform;
+}
+
+/**
+ * Form API submit callback to redirect to the entities page.
+ */
+function flexiform_form_submit_entity_redirect($form, &$form_state) {
+  $form_state['redirect'] = 'admin/structure/flexiforms/manage/'.$form_state['flexiform']->form.'/form-entities';
 }
 
 /**
@@ -807,7 +877,7 @@ function flexiform_manage_form_fields_form($form, &$form_state, $flexiform) {
   $max_weight = flexiform_field_max_weight($flexiform);
   $entity_options = array();
   foreach($entities as $entity_namespace => $info) {
-    $entity_options[$entity_namespace] = $entity_namespace;
+    $entity_options[$entity_namespace] = $info['label'];
   }
 
   if (isset($form_state['values']['fields']['_add_element']['entity'])) {
@@ -896,11 +966,75 @@ function flexiform_manage_form_fields_form($form, &$form_state, $flexiform) {
 
   $form['fields'] = $table;
 
+  $form['additional_settings'] = array(
+    '#type' => 'vertical_tabs',
+    '#theme_wrappers' => array('vertical_tabs'),
+    '#prefix' => '<div>',
+    '#suffix' => '</div>',
+    '#tree' => TRUE,
+  );
+
+  $buttons_settings = !empty($flexiform->settings['buttons']) ? $flexiform->settings['buttons'] : array();
+  $form['additional_settings']['buttons'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Buttons'),
+    '#description' => t('Configure the buttons that appear on this form.'),
+  );
+  $form['additional_settings']['buttons']['submit_text'] = array(
+    '#title' => t('Submit Button Text'),
+    '#description' => t('What the submit button should say.'),
+    '#type' => 'textfield',
+    '#default_value' => !empty($buttons_settings['submit_text']) ? $buttons_settings['submit_text'] : t('Save'),
+  );
+
+  $ajax_settings = !empty($flexiform->settings['ajax']) ? $flexiform->settings['ajax'] : array();
+  $form['additional_settings']['ajax'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('AJAX'),
+    '#description' => t('Configure settings for submitting a form with ajax.'),
+  );
+  $form['additional_settings']['ajax']['submit'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Submit with AJAX'),
+    '#description' => t('Submit this form without reloading the page.'),
+    '#default_value' => !empty($ajax_settings['submit']),
+  );
+  $form['additional_settings']['ajax']['response'] = array(
+    '#type' => 'select',
+    '#title' => t('Response'),
+    '#description' => t('What should happen after the form has been submitted?'),
+    '#options' => array(
+      'refresh' => t('Refresh Form'),
+      'reload' => t('Reload Page'),
+      'redirect' => t('Redirect'),
+    ),
+    '#default_value' => !empty($ajax_settings['response']) ? $ajax_settings['response'] : 'refresh',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="additional_settings[ajax][submit]"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+  $form['additional_settings']['ajax']['redirect'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Redirect Path'),
+    '#description' => t('The path to redirect to.'),
+    '#default_value' => !empty($ajax_settings['redirect']) ? $ajax_settings['redirect'] : '',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="additional_settings[ajax][submit]"]' => array('checked' => TRUE),
+        ':input[name="additional_settings[ajax][response]"]' => array('value' => 'redirect'),
+      ),
+    ),
+  );
+
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array('#type' => 'submit', '#value' => t('Save'));
 
   $form['#attached']['css'][] = drupal_get_path('module', 'flexiform') . '/flexiform_ui.css';
   $form['#attached']['js'][] = drupal_get_path('module', 'flexiform') . '/flexiform_ui.js';
+  $form['#attached']['js'][] = 'misc/form.js';
+  $form['#attached']['js'][] = 'misc/collapse.js';
 
   // Add tabledrag behavior.
   $form['#attached']['drupal_add_tabledrag'][] = array('field-overview', 'order', 'sibling', 'field-weight');
@@ -963,6 +1097,10 @@ function flexiform_manage_form_fields_form_submit($form, &$form_state) {
 
     // Send the User to the Instance Settings page
   }
+
+  // Sort out additional settings.
+  $flexiform->settings['buttons'] = $form_state['values']['additional_settings']['buttons'];
+  $flexiform->settings['ajax'] = $form_state['values']['additional_settings']['ajax'];
   $flexiform->save();
 
   drupal_set_message(t('Your settings have been saved'));
@@ -1036,14 +1174,15 @@ function flexiform_field_remove_form_submit($form, &$form_state) {
  */
 function flexiform_field_widget_type_form($form, &$form_state, $flexiform, $element_namespace) {
   $element = FlexiformElement::getElement($flexiform, $element_namespace);
+  if ($element instanceof FlexiformElementFieldAPIInterface) {
+    form_load_include($form_state, 'inc', 'field_ui', 'field_ui.admin');
+    $form = field_ui_widget_type_form($form, $form_state, $element->getInstance());
 
-  form_load_include($form_state, 'inc', 'field_ui', 'field_ui.admin');
-  $form = field_ui_widget_type_form($form, $form_state, $element->getInstance());
+    $form['#flexiform_element'] = $element;
+    $form['#flexiform'] = $flexiform;
 
-  $form['#flexiform_element'] = $element;
-  $form['#flexiform'] = $flexiform;
-
-  $form['#submit'] = array('flexiform_field_widget_type_form_submit');
+    $form['#submit'] = array('flexiform_field_widget_type_form_submit');
+  }
 
   return $form;
 }

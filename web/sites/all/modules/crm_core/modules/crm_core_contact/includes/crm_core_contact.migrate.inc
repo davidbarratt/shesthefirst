@@ -119,7 +119,7 @@ class MigrateDestinationCRMCoreContact extends MigrateDestinationEntity {
     }
 
     $this->prepare($contact, $row);
-    if (isset($contact->contact_id)) {
+    if (!empty($contact->contact_id)) {
       $updating = TRUE;
     }
     else {
@@ -130,7 +130,7 @@ class MigrateDestinationCRMCoreContact extends MigrateDestinationEntity {
     crm_core_contact_save($contact);
     migrate_instrument_stop('contact_save');
 
-    if (isset($contact->contact_id)) {
+    if (!empty($contact->contact_id)) {
       if ($updating) {
         $this->numUpdated++;
       }

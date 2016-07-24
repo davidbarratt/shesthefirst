@@ -13,12 +13,17 @@ class FlexiformFormEntityPartyDataSet extends FlexiformFormEntityBase {
    * {@inheritdoc}
    */
   public function getEntity() {
+    parent::getEntity();
+
     $settings = $this->settings;
 
     // Get the party entity.
-    $party = $this->getParam('party');
-    $data_set_name = $this->getter['data_set_name'];
-    return $party->getDataSetController($data_set_name)->getEntity(0, TRUE);
+    if ($party = $this->getParam('party')) {
+      $data_set_name = $this->getter['data_set_name'];
+      return $party->getDataSetController($data_set_name)->getEntity(0, TRUE);
+    }
+
+    return FALSE;
   }
 
   /**
@@ -29,8 +34,10 @@ class FlexiformFormEntityPartyDataSet extends FlexiformFormEntityBase {
 
     // Get the party entity. We like to party. We like to, we like to party.
     $party = $this->getParam('party');
-    $party->getDataSetController($this->getter['data_set_name'])
-      ->attachEntity($entity)
-      ->save(TRUE);
+    if ($party && $entity) {
+      $party->getDataSetController($this->getter['data_set_name'])
+        ->attachEntity($entity)
+        ->save(TRUE);
+    }
   }
 }

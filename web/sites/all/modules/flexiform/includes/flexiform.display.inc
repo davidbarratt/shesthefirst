@@ -39,12 +39,59 @@ interface FlexiformDisplayInterface {
    * Get the config form.
    */
   public function configForm($form, &$form_state);
+
+  /**
+   * Retrieve the flexiform for this display.
+   *
+   * @return Flexiform
+   */
+  public function getFlexiform();
+
+  /**
+   * Get the path, if applicable, for the display.
+   *
+   * @param $base_entity_id
+   *   The identifier for the base entity.
+   * @param ...
+   *  Any additional arguments.
+   *
+   * @return string|NULL
+   *   The path to the flexiform or NULL if there is none.
+   */
+  public function getPath($base_entity_id = NULL);
+
+  /**
+   * Check the access for this form display.
+   *
+   * @param array $context
+   *   (optional) An array of settings and values to help the plugin return the
+   *   entity
+   *
+   * @return bool
+   *   TRUE if the user can access this display. False otherwise.
+   */
+  public function access($context = array());
+
 }
 
 /**
  * Base class for all flexiform displays.
  */
 class FlexiformDisplayBase implements FlexiformDisplayInterface {
+
+  /**
+   * The Flexiform the display is for.
+   *
+   * @var Flexiform
+   */
+  protected $flexiform;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFlexiform() {
+    return $this->flexiform;
+  }
 
   public function __construct(Flexiform $flexiform, array $configuration = array()) {
     $this->flexiform = $flexiform;
@@ -89,7 +136,15 @@ class FlexiformDisplayBase implements FlexiformDisplayInterface {
     module_load_include('inc', 'flexiform', 'includes/flexiform.flexiform');
     $base_entity = $this->getBaseEntity($context);
     module_invoke_all('flexiform_prepare_base_entity', $base_entity, $this->flexiform, $this);
-    return flexiform_wrapper($this->flexiform, $base_entity);
+
+    // Allow other modules to change the form wrapper.
+    $wrapper = 'flexiform_wrapper';
+    drupal_alter('flexiform_wrapper', $wrapper, $this, $context);
+
+    $args = isset($context['args']) ? $context['args'] : array();
+    array_unshift($args, $base_entity);
+    array_unshift($args, $this->flexiform);
+    return call_user_func_array($wrapper, $args);
   }
 
   /**
@@ -116,6 +171,23 @@ class FlexiformDisplayBase implements FlexiformDisplayInterface {
     );
 
     return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPath($base_entity_id = NULL) {
+    return NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function access($context = array()) {
+    $base_entity = $this->getBaseEntity($context);
+    return $this->getFlexiform()
+      ->getAccessController(get_class($this))
+      ->checkAccess($base_entity);
   }
 
 }

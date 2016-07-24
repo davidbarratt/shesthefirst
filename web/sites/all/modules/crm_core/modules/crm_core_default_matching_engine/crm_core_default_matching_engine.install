@@ -12,7 +12,7 @@ function crm_core_default_matching_engine_schema() {
   $schema['crm_core_match_contact_types'] = array(
     'description' => 'Stores settings information for available contact types.',
     'fields' => array(
-      'ctid' => array(
+      'ct_id' => array(
         'description' => 'The primary identifier for a contact type.',
         'type' => 'serial',
         'unsigned' => TRUE,
@@ -53,7 +53,7 @@ function crm_core_default_matching_engine_schema() {
         'not null' => TRUE,
       ),
     ),
-    'primary key' => array('ctid'),
+    'primary key' => array('ct_id'),
   );
 
   $schema['crm_core_match_contact_type_rules'] = array(
@@ -132,4 +132,19 @@ function crm_core_default_matching_engine_schema() {
   );
 
   return $schema;
+}
+
+/**
+ * Rename field "ctid" to "ct_id" in "crm_core_match_contact_types" table.
+ */
+function crm_core_default_matching_engine_update_7001() {
+  if (db_field_exists('crm_core_match_contact_types', 'ctid')) {
+    db_change_field('crm_core_match_contact_types', 'ctid', 'ct_id',
+      array(
+        'description' => 'The primary identifier for a contact type.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ));
+  }
 }

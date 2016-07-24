@@ -5,9 +5,9 @@
  */
 
 /**
- * Class for Field API elemtents.
+ * Class for Field API elements.
  */
-class FlexiformElementField extends FlexiformElement{
+class FlexiformElementField extends FlexiformElement implements FlexiformElementFieldAPIInterface {
 
   /**
    * The field name of the field.
@@ -129,6 +129,27 @@ class FlexiformElementField extends FlexiformElement{
   }
 
   /**
+   * Check widget behavior.
+   *
+   * @param array $instance
+   *   (optional) The instance array to check the widget behavior of. Defaults
+   *   to the result of getInstance().
+   * @param string $op
+   *   (optional) The $op to check the behavior of, either 'default value' (default) or 'multiple values'.
+   * @param $behavior
+   *   (optional) The behavior.
+   *
+   * @see field_behaviors_widget()
+   */
+  public function checkWidgetBehavior($instance = array(), $op = 'default value', $behavior = FIELD_BEHAVIOR_DEFAULT) {
+    if (empty($instance)) {
+      $instance = $this->getInstance();
+    }
+
+    return (field_behaviors_widget($op, $instance) == $behavior);
+  }
+
+  /**
    * Get the Difference of two settings arrays.
    *
    * @see http://uk1.php.net/manual/en/function.array-diff-assoc.php#111675
@@ -172,11 +193,68 @@ class FlexiformElementField extends FlexiformElement{
   }
 
   /**
+   * Add the Field Settings section to the config form.
+   *
+   * We add this method separately as it allows us to pass our overridden field
+   * settings to the form, whereas field_ui_field_edit_form assumes
+   * field_info_field will provide the correct values.
+   *
+   * @param array $element
+   *   The Field Settings section of the form.
+   * @param array &$form_state
+   *   The form state.
+   * @param array $instance
+   *   Instance settings.
+   * @param array $field
+   *   The field settings.
+   *
+   * @return array
+   *   The form element for the field settings.
+   */
+  public function configureFieldSettingsForm($element, $form_state, $field, $instance) {
+    $has_data = field_has_data($field);
+
+    // Create a form structure for the field values.
+    $element = array(
+      '#type' => 'fieldset',
+      '#title' => t('Field Settings'),
+      '#description' => t('These settings will override default Field API settings for this field. Overrides will only apply to this flexiform. <strong>Handle with care: Altering these settings can cause unexpected results.</strong>'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#tree' => TRUE,
+    );
+
+    // Build the configurable field values.
+    $description = t('Maximum number of values users can enter for this field.');
+    if (field_behaviors_widget('multiple values', $instance) == FIELD_BEHAVIOR_DEFAULT) {
+      $description .= '<br/>' . t("'Unlimited' will provide an 'Add more' button so the users can add as many values as they like.");
+    }
+    $element['cardinality'] = array(
+      '#type' => 'select',
+      '#title' => t('Number of values'),
+      '#options' => array(FIELD_CARDINALITY_UNLIMITED => t('Unlimited')) + drupal_map_assoc(range(1, 10)),
+      '#default_value' => $field['cardinality'],
+      '#description' => $description,
+    );
+
+    // Add additional field type settings. The field type module is
+    // responsible for not returning settings that cannot be changed if
+    // the field already has data.
+    $additions = module_invoke($field['module'], 'field_settings_form', $field, $instance, $has_data);
+    if (is_array($additions)) {
+      $element['settings'] = $additions;
+    }
+
+    return $element;
+  }
+
+  /**
    * Overrides FlexiformElement::configureForm().
    */
   public function configureForm($form, &$form_state, $flexiform) {
     form_load_include($form_state, 'inc', 'field_ui', 'field_ui.admin');
     $instance = $this->getInstance();
+    $field = $this->getField();
     $form = field_ui_field_edit_form($form, $form_state, $instance);
 
     // Invoke hook_form_alter() and hook_form_field_ui_field_edit_form_alter()
@@ -185,49 +263,51 @@ class FlexiformElementField extends FlexiformElement{
     $fake_form_id = 'field_ui_field_edit_form';
     drupal_alter($hooks, $form, $form_state, $fake_form_id);*/
 
-    // Allow changes to the default values regardless of anything else thats going on.
-    $form['instance']['use_default_value_function'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Use a Default Value Function'),
-      '#default_value' => !(field_behaviors_widget('default value', $instance) == FIELD_BEHAVIOR_DEFAULT && empty($instance['default_value_function'])),
-    );
-    $form['instance']['default_value_function'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Default Value Function'),
-      '#description' => t('If you wish to use a custom default value function, enter the name of it here. Reccommended for advanced users only.'),
-      '#default_value' => $instance['default_value_function'],
-      '#states' => array('invisible' => array(':input[name="instance[use_default_value_function]"]' => array('checked' => FALSE))),
-    );
-    $form['instance']['default_value_widget'] = field_ui_default_value_widget($this->getField(), $instance, $form, $form_state);
-    $form['instance']['default_value_widget']['#states'] = array(
-      'visible' => array(':input[name="instance[use_default_value_function]"]' => array('checked' => FALSE)),
-    );
-    $form['instance']['use_default_value_tokens'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Use Tokens in Default Value'),
-      '#default_value' => !empty($instance['use_default_value_tokens']),
-      '#states' => array(
+    // If the default value behaviour is default, expose our better default
+    // value form.
+    if ($this->checkWidgetBehavior()) {
+      // Allow changes to the default values regardless of anything else thats
+      // going on.
+      $form['instance']['use_default_value_function'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Use a Default Value Function'),
+        '#default_value' => !empty($instance['default_value_function']),
+      );
+      $form['instance']['default_value_function'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Default Value Function'),
+        '#description' => t('If you wish to use a custom default value function, enter the name of it here. Reccommended for advanced users only.'),
+        '#default_value' => isset($instance['default_value_function']) ? $instance['default_value_function'] : NULL,
+        '#states' => array('invisible' => array(':input[name="instance[use_default_value_function]"]' => array('checked' => FALSE))),
+      );
+      $form['instance']['default_value_widget'] = field_ui_default_value_widget($this->getField(), $instance, $form, $form_state);
+      $form['instance']['default_value_widget']['#states'] = array(
         'visible' => array(':input[name="instance[use_default_value_function]"]' => array('checked' => FALSE)),
-      ),
-    );
-    $form['instance']['contexts'] = array(
-      '#title' => t('Substitutions'),
-      '#type' => 'fieldset',
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-      '#status' => array(
-        'visible' => array(':input[name="instance[use_default_value_tokens]"]' => array('checked' => TRUE)),
-      ),
-    );
-    $form['instance']['contexts']['contexts'] = $this->getCtoolsSubstitutionsList();
+      );
+      $form['instance']['use_default_value_tokens'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Use Tokens in Default Value'),
+        '#default_value' => !empty($instance['use_default_value_tokens']),
+        '#states' => array(
+          'visible' => array(':input[name="instance[use_default_value_function]"]' => array('checked' => FALSE)),
+        ),
+      );
+      $form['instance']['contexts'] = array(
+        '#title' => t('Substitutions'),
+        '#type' => 'fieldset',
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+        '#status' => array(
+          'visible' => array(':input[name="instance[use_default_value_tokens]"]' => array('checked' => TRUE)),
+        ),
+      );
+      $form['instance']['contexts']['contexts'] = $this->getCtoolsSubstitutionsList();
+    }
 
     // Rename the boxes and discourage use of field settings.
     $form['instance']['#title'] = t('Form Settings');
     $form['instance']['#description'] = t('These settings will override default Field API settings for this field instance. Overrides will only apply to this flexiform.');
-    $form['field']['#title'] = t('Field Settings');
-    $form['field']['#description'] = t('These settings will override default Field API settings for this field. Overrides will only apply to this flexiform. <strong>Handle with care: Altering these settings can cause unexpected results.</strong>');
-    $form['field']['#collapsible'] = TRUE;
-    $form['field']['#collapsed'] = TRUE;
+    $form['field'] = $this->configureFieldSettingsForm($form, $form_state, $field, $instance);
 
     // Delete the 'Save Settings' button added by FieldUI.
     unset($form['actions']);
@@ -237,6 +317,9 @@ class FlexiformElementField extends FlexiformElement{
     // Unset the label field added by  FlexiformElementBase.
     unset($form['label']);
 
+    // Allow the field label to be longer.
+    $form['instance']['label']['#maxlength'] = NULL;
+
     return $form;
   }
 
@@ -244,7 +327,8 @@ class FlexiformElementField extends FlexiformElement{
    * Overrides FlexiformElement::configureFormValidate().
    */
   public function configureFormValidate($form, &$form_state, $flexiform) {
-    if ($form_state['values']['instance']['use_default_value_function']) {
+    if ($this->checkWidgetBehavior()
+        && $form_state['values']['instance']['use_default_value_function']) {
       unset($form['instance']['default_value_widget']);
     }
 
@@ -270,18 +354,20 @@ class FlexiformElementField extends FlexiformElement{
     $instance = array_merge($element_instance, $instance);
     $original_instance = field_read_instance($instance['entity_type'], $instance['field_name'], $instance['bundle']);
 
-    if (!$instance['use_default_value_function']) {
-      $element = $form['instance']['default_value_widget'];
+    if ($this->checkWidgetBehavior()) {
+      if (!$instance['use_default_value_function']) {
+        $element = $form['instance']['default_value_widget'];
 
-      // Extract field values.
-      $items = array();
-      field_default_extract_form_values(NULL, NULL, $element_field, $element_instance, LANGUAGE_NONE, $items, $element, $form_state);
-      field_default_submit(NULL, NULL, $element_field, $element_instance, LANGUAGE_NONE, $items, $element, $form_state);
+        // Extract field values.
+        $items = array();
+        field_default_extract_form_values(NULL, NULL, $element_field, $element_instance, LANGUAGE_NONE, $items, $element, $form_state);
+        field_default_submit(NULL, NULL, $element_field, $element_instance, LANGUAGE_NONE, $items, $element, $form_state);
 
-      $instance['default_value'] = $items ? $items : NULL;
-    }
-    else {
-      unset($instance['default_value']);
+        $instance['default_value'] = $items ? $items : NULL;
+      }
+      else {
+        unset($instance['default_value']);
+      }
     }
 
     // Cast Required to a boolean so it doesn't get erroneously stored.
@@ -297,6 +383,13 @@ class FlexiformElementField extends FlexiformElement{
   public function form($form, &$form_state, $entity, $language = LANGUAGE_NONE) {
     $items = field_get_items($this->entity_type, $entity, $this->field_name, $language);
 
+    // field_default_form expects $items to be an array or NULL but
+    // field_get_items returns FALSE when there are none. If $items is FALSE
+    // turn it into an empty array to prevent errors later on.
+    if (!$items) {
+      $items = array();
+    }
+
     if (!field_info_field($this->field_name)
       || !field_info_instance($this->entity_type, $this->field_name, $this->bundle)) {
       debug("Error in " . __CLASS__ . "::" . __METHOD__ .": Field <em>{$this->field_name}</em> does not exist or does not have an instance on {$this->entity_type}:{$this->bundle}.", "error");
@@ -306,7 +399,8 @@ class FlexiformElementField extends FlexiformElement{
     $instance = $this->getInstance();
 
     // Deal with default value tokens.
-    if (!empty($instance['use_default_value_tokens'])) {
+    if ($this->checkWidgetBehavior()
+        && !empty($instance['use_default_value_tokens'])) {
       $defaults = &$instance['default_value'];
       foreach ($defaults as $delta => &$item) {
         foreach ($item as &$value) {
@@ -353,65 +447,17 @@ class FlexiformElementField extends FlexiformElement{
    * Validate this element.
    */
   public function formValidate($form, &$form_state, $entity, $language = LANGUAGE_NONE) {
-    // Prepare arrays.
-    $items = isset($entity->{$this->field_name}[$language]) ? $entity->{$this->field_name}[$language] : array();
-    $errors = array();
-    $field = $this->getField();
-
-    // Extract form values.
+    $entity = clone $entity;
     $form_elements = $this->extractFormElements($form);
-    field_default_extract_form_values($this->getEntityType(), $entity, $field, $this->getInstance(), $language, $items, $form_elements, $form_state);
-
-    // Set items onto the entity.
-    if ($items !== array() || isset($entity->{$this->field_name}[$language])) {
-      $entity->{$this->field_name}[$language] = $items;
-    }
-
-    // Validate values
-    field_default_validate($this->getEntityType(), $entity, $field, $this->getInstance(), $language, $items, $errors);
-    $specific_func = $field['module'] . '_field_validate';
-    if (function_exists($specific_func)) {
-      $specific_func($this->getEntityType(), $entity, $field, $this->getInstance(), $language, $items, $errors);
-    }
-
-    // Let other modules validate the entity.
-    // Avoid module_invoke_all() to let $errors be taken by reference.
-    // @todo Work out a way of not calling this loads and loads of times.
-    foreach (module_implements('field_attach_validate') as $module) {
-      $function = $module . '_field_attach_validate';
-      $function($entity_type, $entity, $errors);
-    }
-
-    // Pass field-level validation errors back to widgets for accurate error
-    // flagging.
-    foreach ($errors as $field_name => $field_errors) {
-      foreach ($field_errors as $langcode => $errors) {
-        $field_state = field_form_get_state($form_elements['#parents'], $field_name, $language, $form_state);
-        $field_state['errors'] = $errors;
-        field_form_set_state($form_elements['#parents'], $field_name, $language, $form_state, $field_state);
-      }
-    }
-
-    field_default_form_errors($this->getEntityType(), $entity, $field, $this->getInstance(), $language, $items, $form_elements, $form_state);
+    field_attach_form_validate($this->getEntityType(), $entity, $form_elements, $form_state, array('field_name' => $this->field_name));
   }
 
   /**
    * Submit callback for this form.
    */
   function formSubmit($form, &$form_state, $entity, $language = LANGUAGE_NONE) {
-    // Prepare arrays.
-    $items = isset($entity->{$this->field_name}[$language]) ? $entity->{$this->field_name}[$language] : array();
-    $field = $this->getField();
-
-    // Extract form values.
     $form_elements = $this->extractFormElements($form);
-    field_default_extract_form_values($this->getEntityType(), $entity, $field, $this->getInstance(), $language, $items, $form_elements, $form_state);
-    field_default_submit($this->getEntityType(), $entity, $field, $this->getInstance(), $language, $items, $form_elements, $form_state);
-
-    // Set items onto the entity.
-    if ($items !== array() || isset($entity->{$this->field_name}[$language])) {
-      $entity->{$this->field_name}[$language] = $items;
-    }
+    field_attach_submit($this->getEntityType(), $entity, $form_elements, $form_state, array('field_name' => $this->field_name));
   }
 
   /**

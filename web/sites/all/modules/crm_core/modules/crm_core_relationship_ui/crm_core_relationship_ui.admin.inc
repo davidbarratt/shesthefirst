@@ -276,7 +276,7 @@ function crm_core_relationship_ui_type_delete_confirm_submit($form, &$form_state
   watchdog('relation', 'Deleted the %label relationship type.', $t_args, WATCHDOG_NOTICE);
 
   // TODO: relation_types_rebuild() ?;
-  menu_rebuild();
+  variable_set('menu_rebuild_needed', TRUE);
 
   $form_state['redirect'] = 'admin/structure/crm-core/relationship-types';
   return;

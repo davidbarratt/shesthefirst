@@ -31,7 +31,7 @@ function crm_core_activity_entity_ui_get_form_wrapper($contact, $type) {
 }
 
 /**
- * Form builder for CRM Activity forms.
+ * Form builder for CRM Core Activity forms.
  */
 function crm_core_activity_form($form, &$form_state, $activity) {
   // Ensure this include file is loaded when the form is rebuilt from the cache.
@@ -59,11 +59,7 @@ function crm_core_activity_form($form, &$form_state, $activity) {
 
   field_attach_form('crm_core_activity', $activity, $form, $form_state);
 
-  $form['actions'] = array(
-    '#type' => 'container',
-    '#attributes' => array('class' => array('form-actions')),
-    '#weight' => 40,
-  );
+  $form['actions'] = array('#type' => 'actions');
 
   // We add the form's #submit array to this button along with the actual submit
   // handler to preserve any submit handlers added by a form callback_wrapper.
@@ -106,9 +102,6 @@ function crm_core_activity_form($form, &$form_state, $activity) {
  */
 function crm_core_activity_form_validate($form, &$form_state) {
   $activity = $form_state['crm_core_activity'];
-  if (empty($form_state['values']['field_activity_participants'][LANGUAGE_NONE])) {
-    form_set_error('field_activity_participants', t('Participants field should include at least one participant.'));
-  }
   // Notify field widgets to validate their data.
   field_attach_form_validate('crm_core_activity', $activity, $form, $form_state);
 }

@@ -117,7 +117,9 @@ function crm_core_ui_dashboard() {
           )
         ), 'error');
       }
+      // @todo Consider menu_rebuild() instead for performance reasons.
       drupal_flush_all_caches();
+      // @todo Where do we go if the crm_core_contact_ui is not enabled?
       drupal_goto('crm-core/contact');
     }
     // If the callback returns an array instead of text, render it.
@@ -140,7 +142,9 @@ function crm_core_ui_dashboard() {
         )
       ));
     }
+    // @todo Consider menu_rebuild() instead for performance reasons.
     drupal_flush_all_caches();
+    // @todo Where do we go if the crm_core_contact_ui is not enabled?
     drupal_goto('crm-core/contact');
   }
 }

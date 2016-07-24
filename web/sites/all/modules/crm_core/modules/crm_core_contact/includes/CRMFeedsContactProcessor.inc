@@ -29,14 +29,15 @@ class CRMFeedsContactProcessor extends FeedsProcessor {
    * Creates a new contact in memory and returns it.
    */
   protected function newEntity(FeedsSource $source) {
-    $contact = new stdClass();
-    $contact->type = $this->config['contact_type'];
-    $contact->changed = REQUEST_TIME;
-    $contact->created = REQUEST_TIME;
-    $contact->language = LANGUAGE_NONE;
-    $contact->log = t('Imported by feeds.');
-    $contact->uid = $this->config['author'];
-    return $contact;
+
+    $values = array(
+      'type' => $this->config['contact_type'],
+      'language' => LANGUAGE_NONE,
+      'log' => t('Imported by feeds.'),
+      'uid' => $this->config['author'],
+    );
+
+    return entity_create('crm_core_contact', $values);
   }
 
   /**

@@ -38,7 +38,7 @@ function flexiform_edit_pane_content_type_content_types() {
   $forms = entity_load('flexiform');
 
   foreach ($forms as $form) {
-    if (empty($form->displays['flexiform_edit_entity_pane']['enabled'])) {
+    if (!($display = $form->getDisplay('FlexiformDisplayEditPane')) || !$display->isEnabled()) {
       continue;
     }
 
@@ -89,8 +89,13 @@ function flexiform_edit_pane_content_type_render($subtype, $conf, $panel_args, $
     'base_entity' => $context,
   );
   $flexiform = entity_load_single('flexiform', $subtype);
-  $content = $flexiform->getDisplay('flexiform_edit_entity_pane')->build($display_context);
-  $title = $flexiform->getDisplay('flexiform_edit_entity_pane')->title($display_context);
+
+  if (!$flexiform->getDisplay('FlexiformDisplayEditPane')->access($display_context)) {
+    return;
+  }
+
+  $content = $flexiform->getDisplay('FlexiformDisplayEditPane')->build($display_context);
+  $title = $flexiform->getDisplay('FlexiformDisplayEditPane')->title($display_context);
 
   // Build the content type block.
   $block = new stdClass();

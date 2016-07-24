@@ -13,6 +13,8 @@ function flexiform_hook_info() {
   $hooks['flexiform_display_info'] = array('group' => 'flexiform');
   $hooks['flexiform_element_info'] = array('group' => 'flexiform');
   $hooks['flexiform_entity_getter_info'] = array('group' => 'flexiform');
+  $hooks['flexiform_ajax_submit_commands_alter'] = array('group' => 'flexiform');
+  $hooks['flexiform_access'] = array('group' => 'flexiform');
   $hooks['flexiform_submission_access'] = array('group' => 'flexiform');
   $hooks['default_flexiform'] = array('group' => 'flexiform_default');
   $hooks['default_flexiform_alter'] = array('group' => 'flexiform_default');
@@ -90,7 +92,7 @@ function flexiform_user_categories() {
 
   $forms = entity_load('flexiform');
   foreach ($forms as $form) {
-    if (($display = $form->getDisplay('flexiform_user_category')) && $display->isEnabled()) {
+    if (($display = $form->getDisplay('FlexiformDisplayUserCategory')) && $display->isEnabled()) {
       $categories = array_merge($categories, $display->hook_user_categories());
     }
   }
@@ -175,8 +177,32 @@ function flexiform_permission() {
 /**
  * Access callback for the entity API.
  */
-function flexiform_access($op, $type = NULL, $account = NULL) {
-  return user_access('administer flexiforms', $account);
+function flexiform_access($op, $flexiform = NULL, $account = NULL) {
+  if (user_access('administer flexiforms', $account)) {
+    return TRUE;
+  }
+
+  // Allow modules to grant / deny access.
+  $access = module_invoke_all('flexiform_access', $op, $flexiform, $account);
+
+  // Only grant access if at least one module granted access and no one denied
+  // access.
+  if (in_array(FALSE, $access, TRUE)) {
+    return FALSE;
+  }
+  elseif (in_array(TRUE, $access, TRUE)) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Access callback for widget type form.
+ */
+function flexiform_field_widget_type_form_access($flexiform, $element_namespace) {
+  $element = FlexiformElement::getElement($flexiform, $element_namespace);
+  return ($element instanceof FlexiformElementFieldAPIInterface)
+  && user_access('administer flexiforms');
 }
 
 /**
@@ -262,6 +288,10 @@ function flexiform_formfield_load($string) {
  */
 function flexiform_theme() {
   return array(
+    'flexiform' => array(
+      'render element' => 'element',
+      'template' => 'flexiform',
+    ),
     'flexiform_field_table' => array(
       'render element' => 'elements',
     ),
@@ -276,6 +306,14 @@ function flexiform_theme() {
 }
 
 /**
+ * Preprocessor for flexiforms.
+ */
+function template_preprocess_flexiform(&$variables) {
+  $variables['form'] = drupal_render_children($variables['element']);
+  $variables['form_html_id'] = 'flexiform--' . $variables['element']['#id'];
+}
+
+/**
  * Implements hook_forms().
  */
 function flexiform_forms($form_id, $args) {
@@ -285,10 +323,19 @@ function flexiform_forms($form_id, $args) {
   if ($parts[0] == 'flexiform') {
     $forms[$form_id] = array(
       'callback' => 'flexiform',
+      'wrapper_callback' => 'flexiform_form_wrapper',
     );
   }
 
   return $forms;
+}
+
+/**
+ * Flexiform Form Wrapper to ensure that the flexiform include file is always present.
+ */
+function flexiform_form_wrapper($form, &$form_state) {
+  form_load_include($form_state, 'inc', 'flexiform', 'includes/flexiform.flexiform');
+  return $form;
 }
 
 /**
@@ -325,7 +372,7 @@ function flexiform_get_groups() {
 /**
  * Title Callback for Flexiform Submission Pages.
  */
-function flexiform_page_title($flexiform, $display = 'flexiform_create_entity_page', $base_entity_id = FALSE) {
+function flexiform_page_title($flexiform, $display, $base_entity_id = NULL) {
   if (!is_object($flexiform)) {
     $flexiform = flexiform_load($flexiform);
   }
@@ -338,6 +385,42 @@ function flexiform_page_title($flexiform, $display = 'flexiform_create_entity_pa
     'base_entity_id' => $base_entity_id,
   );
   return $flexiform->getDisplay($display)->title($context);
+}
+
+/**
+ * Access callback for flexiform pages.
+ */
+function flexiform_page_access($flexiform, $display, $base_entity_id = NULL) {
+  if (!is_object($flexiform)) {
+    $flexiform = flexiform_load($flexiform);
+  }
+
+  if (!$flexiform) {
+    return FALSE;
+  }
+
+  $context = array(
+    'base_entity_id' => $base_entity_id,
+  );
+  return $flexiform->getDisplay($display)->access($context);
+}
+
+/**
+ * Access callback for flexiform user categories.
+ */
+function flexiform_user_category_access($flexiform, $display, $user) {
+  if (!is_object($flexiform)) {
+    $flexiform = flexiform_load($flexiform);
+  }
+
+  if (!$flexiform) {
+    return FALSE;
+  }
+
+  $context = array(
+    'base_entity_id' => $user,
+  );
+  return user_edit_access($user) && $flexiform->getDisplay($display)->access($context);
 }
 
 /**
@@ -410,6 +493,19 @@ function flexiform_entity_type_get_builders($entity_type) {
     }
   }
   return $applicable_builders;
+}
+
+/**
+ * Access callback for form-entities and form-fields tabs that are only
+ * available for some builders.
+ *
+ * @param Flexiform $flexiform
+ *   The flexiform to check.
+ * @param string $component
+ *   The component to check access for, normally 'elements' or 'entities'
+ */
+function flexiform_builder_admin_access($flexiform, $component) {
+  return user_access('administer flexiforms') && $flexiform->getBuilder()->supportsComponent($component);
 }
 
 //-----------------------------------------------------------------------------
@@ -522,11 +618,11 @@ function flexiform_get_element_info($entity_type = '', $bundle = '', $name = '',
   if (!empty($entity_type)) {
     if (!empty($bundle)) {
       if (!empty($name)) {
-        return $elements[$entity_type][$bundle][$name];
+        return isset($elements[$entity_type][$bundle][$name]) ? $elements[$entity_type][$bundle][$name] : FALSE;
       }
-      return $elements[$entity_type][$bundle];
+      return isset($elements[$entity_type][$bundle]) ? $elements[$entity_type][$bundle] : FALSE;
     }
-    return $elements[$entity_type];
+    return isset($elements[$entity_type]) ? $elements[$entity_type] : FALSE;
   }
 
   return $elements;
@@ -601,4 +697,28 @@ function flexiform_entity_type_get_displays($entity_type) {
  */
 function flexiform_display($flexiform, $display, $context = array()) {
   return $flexiform->getDisplay($display)->build($context);
+}
+
+/**
+ * Implements hook_ctools_access_get.
+ */
+function flexiform_ctools_access_get($argument) {
+  $flexiform = flexiform_load($argument);
+
+  try {
+    $contexts = $flexiform->getAccessController()->prepareContexts();
+  }
+  catch (Exception $e) {
+    return array();
+  }
+
+  return array($flexiform->getAccessController()->getCtoolsSettings(), $contexts);
+}
+
+/**
+ * Implements hook_ctools_access_set().
+ */
+function flexiform_ctools_access_set($argument, $access) {
+  $flexiform = flexiform_load($argument);
+  $flexiform->getAccessController()->setCtoolsSettings($access);
 }

@@ -22,7 +22,7 @@ function crm_core_activity_ui_enable() {
   $menu_items = array(
     array(
       'link_path' => 'admin/structure/crm-core/activity-types',
-      'link_title' => 'Administer CRM activity types',
+      'link_title' => 'Administer CRM Core Activity types',
       'menu_name' => 'crm-core-admin-menu',
     ),
   );

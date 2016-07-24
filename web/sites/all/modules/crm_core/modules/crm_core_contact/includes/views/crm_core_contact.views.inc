@@ -11,12 +11,12 @@
 function crm_core_contact_views_data() {
   $data = array();
 
-  $data['crm_core_contact']['table']['group'] = t('CRM Contact');
+  $data['crm_core_contact']['table']['group'] = t('CRM Core Contact');
 
   $data['crm_core_contact']['table']['base'] = array(
     'field' => 'contact_id',
-    'title' => t('CRM Contact'),
-    'help' => t('Contacts from the CRM.'),
+    'title' => t('CRM Core Contact'),
+    'help' => t('Contacts from the CRM Core.'),
   );
 
   $data['crm_core_contact']['contact_id'] = array(
@@ -57,16 +57,30 @@ function crm_core_contact_views_data() {
   );
 
   // Expose the creator uid.
-  //  $data['crm_core_contact']['uid'] = array(
-  //    'title' => t('Creator'),
-  //    'help' => t('Relate a contact to the user who created it.'),
-  //    'relationship' => array(
-  //      'handler' => 'views_handler_relationship',
-  //      'base' => 'users',
-  //      'field' => 'uid',
-  //      'label' => t('Contact creator'),
-  //    ),
-  //  );
+  $data['crm_core_contact']['uid'] = array(
+    'title' => t('Author'),
+    'help' => t('Relate CRM Core Contacts to the user who created it.'),
+    'field' => array(
+      'handler' => 'views_handler_field_numeric',
+      'click sortable' => TRUE,
+    ),
+    'argument' => array(
+      'handler' => 'views_handler_argument_numeric',
+      'numeric' => TRUE,
+    ),
+    'filter' => array(
+      'handler' => 'views_handler_filter_numeric',
+    ),
+    'sort' => array(
+      'handler' => 'views_handler_sort',
+    ),
+    'relationship' => array(
+      'label' => 'crm_core_contact author',
+      'title' => t('Author'),
+      'base' => 'users',
+      'base field' => 'uid',
+    ),
+  );
 
   // Expose the created and changed timestamps.
   $data['crm_core_contact']['created'] = array(
@@ -101,12 +115,12 @@ function crm_core_contact_views_data() {
 
   $data['crm_core_contact']['table']['entity type'] = 'crm_core_contact';
 
-  $data['crm_core_contact_type']['table']['group'] = t('CRM Contact Types');
+  $data['crm_core_contact_type']['table']['group'] = t('CRM Core Contact Types');
 
   $data['crm_core_contact_type']['table']['base'] = array(
     'field' => 'type',
-    'title' => t('CRM Contact Type'),
-    'help' => t('CRM Contact Types'),
+    'title' => t('CRM Core Contact Type'),
+    'help' => t('CRM Core Contact Types'),
   );
 
   // Contact type table join for filtering purposes.
@@ -129,12 +143,12 @@ function crm_core_contact_views_data() {
     ),
   );
 
-  $data['crm_core_contact_revision']['table']['group'] = t('CRM Contacts Revisions');
+  $data['crm_core_contact_revision']['table']['group'] = t('CRM Core Contact revision');
 
   $data['crm_core_contact_revision']['table']['base'] = array(
     'field' => 'vid',
-    'title' => t('CRM Contacts Revisions'),
-    'help' => t('Contacts revisions from the CRM.'),
+    'title' => t('CRM Core Contact revision'),
+    'help' => t('Contact revisions from CRM Core.'),
   );
 
   $data['crm_core_contact_revision']['vid'] = array(
@@ -203,16 +217,27 @@ function crm_core_contact_views_data() {
 
   // Expose the creator uid.
   $data['crm_core_contact_revision']['uid'] = array(
-    'title' => t('Creator'),
-    'help' => t('Relate a contact to the user who created it.'),
+    'title' => t('User'),
+    'help' => t('Relate CRM Core Contacts to the user who created it.'),
     'field' => array(
       'handler' => 'views_handler_field_numeric',
+      'click sortable' => TRUE,
+    ),
+    'argument' => array(
+      'handler' => 'views_handler_argument_numeric',
+      'numeric' => TRUE,
+    ),
+    'filter' => array(
+      'handler' => 'views_handler_filter_numeric',
+    ),
+    'sort' => array(
+      'handler' => 'views_handler_sort',
     ),
     'relationship' => array(
-      'handler' => 'views_handler_relationship',
+      'label' => 'crm_core_contact user',
+      'title' => t('User'),
       'base' => 'users',
-      'field' => 'uid',
-      'label' => t('Contact creator'),
+      'base field' => 'uid',
     ),
   );
 

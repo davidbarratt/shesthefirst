@@ -104,5 +104,33 @@ function hook_crm_core_activity_type_add_field_instances_alter(&$instances, CRMA
 }
 
 /**
+ * Register a custom module report in CRM Core report index('crm-core/reports').
+ */
+function hook_crm_core_report_register() {
+  $reports = array(
+    'cmcm' => array(
+      'title' => t('Memberships'),
+      'reports' => array(),
+      'widgets' => array(),
+    ),
+  );
+
+  // Membership members report.
+  $reports['cmcm']['reports']['cmcm_members'] = array(
+    'title' => t('Members'),
+    'path' => 'crm-core/reports/membership/members',
+    'description' => t('Provides a quick overview of memberes in the system.'),
+  );
+
+  return $reports;
+}
+
+/**
+ * Alters reports info.
+ */
+function hook_crm_core_report_register_alter(&$reports) {
+}
+
+/**
  * @} End of "addtogroup hooks".
  */

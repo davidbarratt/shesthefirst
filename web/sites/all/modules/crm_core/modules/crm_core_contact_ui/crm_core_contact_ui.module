@@ -186,18 +186,20 @@ function crm_core_contact_ui_save_contact_button_name($contact_type) {
  * Expands contact types at Structure > CRM Core > CRM Core Contact types.
  */
 function crm_core_contact_ui_admin_menu_map() {
-
-  $contact_types = array_keys(crm_core_contact_types());
+  $arguments = array();
   $map = array();
+  $contact_types = array_keys(crm_core_contact_types());
+  foreach ($contact_types as $type) {
+    $arguments[] = array(
+      '%crm_core_contact_type' => array($type),
+      '%entity_object' => array($type),
+    );
+  }
+
   $map['admin/structure/crm-core/contact-types/manage/%crm_core_contact_type'] = array(
     'parent' => 'admin/structure/crm-core/contact-types',
     'hide' => 'admin/structure/crm-core/contact-types/list',
-    'arguments' => array(
-      array(
-        '%entity_object' => $contact_types,
-        '%crm_core_contact_type' => $contact_types,
-      ),
-    ),
+    'arguments' => $arguments,
   );
 
   return $map;

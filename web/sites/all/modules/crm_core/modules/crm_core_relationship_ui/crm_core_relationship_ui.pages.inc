@@ -46,7 +46,7 @@ function crm_core_relation_entity_ui_get_form_wrapper($contact, $type, $reverse)
 }
 
 /**
- * Form builder for CRM Activity forms.
+ * Form builder for CRM Core Activity forms.
  */
 function crm_core_relationship_form($form, &$form_state, $relation) {
   // Ensure this include file is loaded when the form is rebuilt from the cache.
@@ -349,43 +349,39 @@ function crm_core_relationship_ui_add_relationship_form_submit($form, &$form_sta
 }
 
 /**
- * Autocomplete function for add relationship form. Lookup for contacts.
+ * Autocomplete callback for add relationship form. Lookup for contacts.
  *
- * @param $crm_core_contact
+ * @param object $crm_core_contact
  *   Entity object of crm_core_contact type.
- * @param $relationship_type
+ * @param object $relationship_type
  *   Relation type object.
- * @param $reverse
+ * @param int $reverse
  *   Whether relation is reversed.
- * @param $string
+ * @param string $string
  *   String CRM contact is started with.
  */
 function crm_core_relationship_ui_add_relationship_autocomplete($crm_core_contact, $relationship_type, $reverse, $string) {
-  module_load_include('inc', 'crm_core_relationship_ui');
-
   $matches = array();
 
   $contact_types = array_keys(crm_core_relationship_load_contact_types($relationship_type, $reverse));
 
-  $query = new EntityFieldQuery;
-  $query->entityCondition('entity_type', 'crm_core_contact')
-    ->propertyCondition('type', $contact_types, 'IN')
-    ->range(0, 20);
-
+  $query = db_select('crm_core_contact', 'c');
+  $query->range(0, 20);
+  $query->condition('name', '%' . db_like($string) . '%', 'LIKE');
+  $query->condition('type', $contact_types, 'IN');
   if ($crm_core_contact != NULL) {
-    $query->propertyCondition('contact_id', $crm_core_contact->contact_id, '<>');
+    $query->condition('contact_id', $crm_core_contact->contact_id, '<>');
+  }
+  $query->addField('c', 'contact_id');
+  $query->addField('c', 'name');
+  $contacts = $query->execute()->fetchAllKeyed();
+  if (!empty($contacts)) {
+    foreach ($contacts as $contact_id => $contact_name) {
+      $name = check_plain($contact_name);
+      $matches[$name . " [cid:$contact_id]"] = $name;
+    }
   }
 
-  $query->addMetaData('match', $string)
-    ->addTag(variable_get('crm_core_contact_search_query_tag', 'crm_core_contact_search'));
-  $result = $query->execute();
-  $contacts = entity_load('crm_core_contact', array_keys($result['crm_core_contact']));
-  foreach ($contacts as $contact) {
-    $crm_core_contact_title = crm_core_contact_title($contact);
-    $matches[$crm_core_contact_title . " [cid:$contact->contact_id]"] = $crm_core_contact_title;
-  }
-
-  // return for JS
   drupal_json_output($matches);
 }
 

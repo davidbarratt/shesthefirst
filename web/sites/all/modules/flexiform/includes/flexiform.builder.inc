@@ -23,6 +23,13 @@ interface FlexiformBuilderInterface {
    * Submit the form.
    */
   public function formSubmit($form, &$form_state);
+
+  /**
+   * Support Components.
+   *
+   * Determine whether or not a builder supports a paricular component.
+   */
+  public function supportsComponent($component);
 }
 
 /**
@@ -61,6 +68,8 @@ class FlexiformBuilder implements FlexiformBuilderInterface {
     $form['#flexiform'] = $this->flexiform;
     $form['#flexiform_base_entity'] = $this->base_entity;
     $form['#flexiform_builder'] = $this;
+    $form['#theme'] = array('flexiform__'.$this->flexiform->form, 'flexiform');
+    $form['#contextual_links']['flexiform'] = array('admin/structure/flexiforms/manage', array($this->flexiform->form));
 
     return $form;
   }
@@ -100,5 +109,12 @@ class FlexiformBuilder implements FlexiformBuilderInterface {
    */
   public function getFlexiform() {
     return $this->flexiform;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function supportsComponent($component) {
+    return FALSE;
   }
 }

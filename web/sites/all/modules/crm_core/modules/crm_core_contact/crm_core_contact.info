@@ -43,12 +43,11 @@ files[] = includes/views/handlers/crm_core_contact_handler_field_contact_type.in
 ;files[] = includes/views/handlers/crm_core_contact_handler_field_contact_link.inc
 
 ; Other includes
-files[] = includes/crm_core_contact_entityreference.inc
 files[] = includes/crm_core_contact.migrate.inc
 
-; Information added by Drupal.org packaging script on 2014-03-23
-version = "7.x-0.964"
+; Information added by Drupal.org packaging script on 2016-01-23
+version = "7.x-1.0-rc1"
 core = "7.x"
 project = "crm_core"
-datestamp = "1395612265"
+datestamp = "1453535642"
 

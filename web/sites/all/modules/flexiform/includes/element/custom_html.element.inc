@@ -20,6 +20,8 @@ class FlexiformElementCustomHtml extends FlexiformRepeatableElement {
     $value = $this->replaceCtoolsSubstitutions($value, $form['#flexiform_entities']);
 
     $form[$this->element_namespace] = array(
+      '#type' => 'item',
+      '#support_flexiform_conditional_fields' => TRUE,
       '#markup' => check_markup($value, $format),
       '#parents' => $parents,
     );
@@ -69,18 +71,4 @@ class FlexiformElementCustomHtml extends FlexiformRepeatableElement {
 
     parent::configureFormSubmit($form, $form_state, $flexiform);
   }
-
-  /**
-   * Adds custom html to the settings array.
-   *
-   * @return array $settings
-   *   The settings to be saved for the form element.
-   */
-  public function toSettingsArray() {
-    $settings = parent::toSettingsArray();
-    $settings['custom_html'] = $this->settings['custom_html'];
-
-    return $settings;
-  }
-
 }
