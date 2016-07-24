@@ -345,3 +345,35 @@ function hook_flexiform_prepare_base_entity($base_entity, Flexiform $flexiform, 
     );
   }
 }
+
+/**
+ * Alter the form wrapper for a Flexiform.
+ *
+ * @param callable $wrapper
+ *   The form wrapper callback.
+ * @param FlexiformDisplayInterface $display
+ *   The display being built.
+ * @param array $context
+ *   The context in which the form is being built.
+ */
+function hook_flexiform_wrapper_alter($wrapper, FlexiformDisplayInterface $display, $context) {
+  // Swap the wrapper to our custom one for a particular flexiform.
+  if ($display->getFlexiform()->form == 'my_form') {
+    $wrapper = 'my_wrapper';
+  }
+}
+
+/**
+ * Alter the AJAX commands before they are sent on the submission of a form.
+ *
+ * @param array $commands
+ *   The ajax commands that are about to be sent.
+ * @param array $context
+ *   And array of helpful contextual information, including:
+ *   - flexiform: The flexiform configuration entity,
+ *   - form: The built form array.
+ *   - form_state: The form state of the submitted element.
+ */
+function hook_flexiform_ajax_submit_commands_alter(&$commands, $context) {
+  // No Example.
+}

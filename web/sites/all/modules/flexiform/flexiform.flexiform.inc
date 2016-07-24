@@ -12,6 +12,9 @@ function flexiform_flexiform_group_info() {
     'general' => array(
       'label' => t('General'),
     ),
+    'test' => array(
+      'label' => t('Test'),
+    ),
   );
 }
 
@@ -54,7 +57,23 @@ function flexiform_flexiform_entity_getter_info() {
     'label' => 'Base Entity',
     'description' => 'The Base Entity for this Flexiform',
     'entity_types' => array_keys(entity_get_info()),
-    'class' => 'FlexiformFormEntityBase',
+    'class' => 'FlexiformFormEntityBaseEntity',
+  );
+
+  // Load entity getter.
+  $getters['load_entity'] = array(
+    'label' => 'Load Entity from ID',
+    'description' => 'Load the entity based on id.',
+    'entity_types' => array_keys(entity_get_info()),
+    'class' => 'FlexiformFormEntityLoad',
+  );
+
+  // New entity getter.
+  $getters['new_entity'] = array(
+    'label' => 'Create a New Entity',
+    'description' => 'Create a new entity.',
+    'entity_types' => array_keys(entity_get_info()),
+    'class' => 'FlexiformFormEntityNew',
   );
 
   // User Getters
@@ -190,44 +209,99 @@ function flexiform_flexiform_entity_getter_info() {
       }
     }
   }
+
+  // Build reply module getters.
+  if (module_exists('reply')) {
+    $fields = db_select('field_config', 'fc')
+      ->condition('type', 'reply')
+      ->fields('fc', array('field_name'))
+      ->execute()
+      ->fetchCol();
+
+    foreach ($fields as $field_name) {
+      $field = field_info_field($field_name);
+
+      foreach ($field['bundles'] as $base_entity_type => $bundles) {
+        $base_entity_info = entity_get_info($base_entity_type);
+
+        // Prepare replacements for the label.
+        $label_replacements = array(
+          '@base' => $base_entity_info['label'],
+          '@field' => $field_name,
+        );
+
+        $getters["reply_new__{$field_name}__{$base_entity_type}"] = array(
+          'label' => t('New Reply: @field from @base', $label_replacements),
+          'description' => t('Get a new reply on the entity.'),
+          'field_name' => $field_name,
+          'params' => array(
+            'base' => array(
+              'entity_type' => $base_entity_type,
+            ),
+          ),
+          'entity_types' => array('reply'),
+          'class' => 'FlexifromFormEntityNewReply',
+        );
+      }
+    }
+  }
+
+  if (module_exists('commerce_line_item')) {
+    $getters['commerce_line_item_new'] = array(
+      'label' => t('New Line Item for Order'),
+      'description' => t('Get a new line item for the order.'),
+      'params' => array(
+        'base' => array(
+          'entity_type' => 'commerce_order',
+        ),
+      ),
+      'entity_types' => array('commerce_line_item'),
+      'class' => 'FlexiformFormEntityNewCommerceLineItem',
+    );
+  }
   return $getters;
 }
 
 /**
- * Implements hook_flexiform_builder_info().
+ * Implements hook_flexiform_display_info().
  */
 function flexiform_flexiform_display_info() {
   $displays = array();
 
-  $displays['flexiform_create_entity_page'] = array(
-    'class' => 'FlexiformDisplayCreatePage',
+  $displays['FlexiformDisplayCreatePage'] = array(
     'label' => t('Add page'),
     'description' => t('A page to add a new submission of the form. Will create a new base entity.'),
   );
 
-  $displays['flexiform_edit_entity_page'] = array(
-    'class' => 'FlexiformDisplayEditPage',
+  $displays['FlexiformDisplayEditPage'] = array(
     'label' => t('Edit page'),
     'description' => t('A page to an edit form. Will load an existing base entity.'),
   );
 
   if (module_exists('ctools')) {
-    $displays['flexiform_add_entity_pane'] = array(
-      'class' => 'FlexiformDisplayAddPane',
+    $displays['FlexiformDisplayAddPane'] = array(
       'label' => t('Add Pane (Ctools Content)'),
       'description' => t('Expose the form in a Ctools Content Plugin.'),
     );
 
-    $displays['flexiform_edit_entity_pane'] = array(
-      'class' => 'FlexiformDisplayEditPane',
+    $displays['FlexiformDisplayEditPane'] = array(
       'label' => t('Edit Pane (Ctools Content)'),
       'description' => t('Expose the form in a Ctools Content Plugin.'),
+    );
+
+    $displays['FlexiformDisplayCreateModal'] = array(
+      'label' => t('Add Modal Form'),
+      'description' => t('Expose the form in a Ctools modal.'),
+    );
+
+    $displays['FlexiformDisplayEditModal'] = array(
+      'label' => t('Edit Modal Form'),
+      'description' => t('Expose the form in a Ctools modal.'),
     );
   }
 
   if (module_exists('user')) {
-    $displays['flexiform_user_category'] = array(
-      'class' => 'FlexiformDisplayUserCategory',
+    $displays['FlexiformDisplayUserCategory'] = array(
       'label' => t('User category'),
       'description' => t('Expose this form as a tab under user edit.'),
     );
@@ -248,18 +322,6 @@ function flexiform_flexiform_element_info() {
     ->execute()
     ->fetchAllAssoc('form');
 
-  // Add custom form elements to every entity type.
-  foreach (entity_get_info() as $entity_type => $info) {
-    foreach ($info['bundles'] as $bundle => $info) {
-      $elements[$entity_type][$bundle]['custom:html'] = array(
-        'label' => t('Custom HTML'),
-        'class' => 'FlexiformElementCustomHtml',
-        'type' => 'custom_html',
-        'group' => 'Custom',
-      );
-    }
-  }
-
   foreach ($forms as $form) {
     $elements[$form->base_entity][$form->base_entity_bundle]['flexiform:' . $form->form] = array(
       'label' => $form->label,
@@ -270,21 +332,90 @@ function flexiform_flexiform_element_info() {
     );
   }
 
+  // Get all entity properties
+  foreach (entity_get_property_info() as $entity_type => $info) {
+    $entity_properties = empty($info['properties']) ? array() : $info['properties'];
+    if (isset($info['bundles'])) {
+      foreach ($info['bundles'] as $bundle => $binfo) {
+        $properties = empty($binfo['properties']) ? array() : $binfo['properties'];
+        $properties += $entity_properties;
+
+        foreach ($properties as $name => $property) {
+          // If it is a field api field. Use the field api logic later.
+          if (!empty($property['field'])) {
+            continue;
+          }
+          else if (!empty($property['setter callback'])) {
+            $class = 'FlexiformElementEntityProperty';
+            if (!empty($property['type'])) {
+              $type = $property['type'];
+              if ($list = entity_property_list_extract_type($type)) {
+                $type = $list;
+              }
+              $class = 'FlexiformElementEntityProperty__' . $type;
+            }
+
+            $elements[$entity_type][$bundle]['property:' . $name] = array(
+              'label' => $property['label'],
+              'class' => class_exists($class) ? $class : 'FlexiformElementEntityProperty',
+              'type' => 'property',
+              'group' => 'Property',
+              'property' => $name,
+            );
+          }
+        }
+
+        // Add field_api_fields.
+        foreach (field_info_instances($entity_type, $bundle) as $field_name => $instance) {
+          $field = field_info_field($field_name);
+          $field_class = 'FlexiformElementField_' . $field['type'];
+          $elements[$entity_type][$bundle]['field:' . $field_name] = array(
+            'label' => $instance['label'],
+            'class' => class_exists($field_class) ? $field_class : 'FlexiformElementField',
+            'type' => 'field',
+            'group' => 'Field',
+            'field_name' => $field_name,
+          );
+        }
+      }
+    }
+    else {
+      foreach ($entity_properties as $name => $property) {
+        if (!empty($property['setter callback'])) {
+          $class = 'FlexiformElementEntityProperty';
+          if (!empty($property['type'])) {
+            $class = 'FlexiformElementEntityProperty__' . $property['type'];
+          }
+
+          $elements[$entity_type][$entity_type]['property:' . $name] = array(
+            'label' => $property['label'],
+            'class' => class_exists($class) ? $class : 'FlexiformElementEntityProperty',
+            'type' => 'property',
+            'group' => 'Property',
+            'property' => $name,
+          );
+        }
+      }
+    }
+  }
+
   // Get all the field elements.
-  $fields_info = field_info_instances();
+  /*$fields_info = field_info_instances();
   foreach ($fields_info as $entity_type => $entity_fields) {
     foreach ($entity_fields as $bundle => $bundle_fields) {
       foreach ($bundle_fields as $field_name => $instance) {
+        $field = field_info_field($instance['field_name']);
+        $field_class = 'FlexiformElementField_' . $field['type'];
         $elements[$entity_type][$bundle]['field:' . $field_name] = array(
           'label' => $instance['label'],
-          'class' => 'FlexiformElementField',
+          'class' => class_exists($field_class) ? $field_class : 'FlexiformElementField',
           'type' => 'field',
           'group' => 'Field',
           'field_name' => $field_name,
         );
       }
     }
-  }
+  }*/
 
   // Get node elements
   foreach (node_type_get_types() as $bundle => $info) {
@@ -296,6 +427,13 @@ function flexiform_flexiform_element_info() {
         'group' => 'Node',
       );
     }
+
+    $elements['node'][$bundle]['node:author'] = array(
+      'label' => t('Authored by'),
+      'class' => 'FlexiformElementNodeAuthor',
+      'type' => 'author',
+      'group' => 'Node',
+    );
 
     $elements['node'][$bundle]['node:status'] = array(
       'label' => t('Published'),
@@ -317,6 +455,94 @@ function flexiform_flexiform_element_info() {
       'type' => 'sticky',
       'group' => 'Node',
     );
+  }
+
+  $elements['user']['user']['user:name'] = array(
+    'label' => t('Name'),
+    'class' => 'FlexiformElementUserName',
+    'type' => 'name',
+    'group' => 'User',
+  );
+  $elements['user']['user']['user:pass'] = array(
+    'label' => t('Password'),
+    'class' => 'FlexiformElementUserPass',
+    'type' => 'pass',
+    'group' => 'User',
+  );
+  $elements['user']['user']['user:mail'] = array(
+    'label' => t('E-mail'),
+    'class' => 'FlexiformElementUserMail',
+    'type' => 'mail',
+    'group' => 'User',
+  );
+  $elements['user']['user']['user:roles'] = array(
+    'label' => t('Roles'),
+    'class' => 'FlexiformElementUserRoles',
+    'type' => 'roles',
+    'group' => 'User',
+  );
+
+  // Include ctools content stuff.
+  $panes = $entity_panes = array();
+  if (module_exists('ctools')) {
+    ctools_include('content');
+
+    // Trying to make all ctools content types available is to expensive to fit
+    // into a reasonable load time so limit the exposed content types. Extra
+    // types can be exposed by changing the value of this variable.
+    $exposed_types = variable_get('flexiform_exposed_ctools_content', array('views_panes', 'entity_view'));
+    foreach ($exposed_types as $name) {
+      $type = ctools_get_content_type($name);
+      foreach (ctools_content_get_subtypes($type) as $sub => $info) {
+        if (!empty($info['required context']) && (!is_array($info['required context']) || count($info['required context']) === 1)) {
+          $context = $info['required context'];
+          if (is_array($context)) {
+            $context = reset($context);
+          }
+
+          if (!$context) {
+            continue;
+          }
+
+          $entity_type = $context->keywords;
+          if (substr($entity_type, 0, 7) == 'entity:') {
+            $entity_type = substr($entity_type, 7);
+          }
+
+          $entity_panes[$entity_type]["{$name}:{$sub}"] = array(
+            'type' => $name,
+            'subtype' => $sub,
+            'title' => $info['title'],
+            'category' => (is_array($info['category'])) ? reset($info['category']) : $info['category'],
+          );
+        }
+      }
+    }
+  }
+
+  // Add custom form elements to every entity type.
+  foreach (entity_get_info() as $entity_type => $info) {
+    foreach ($info['bundles'] as $bundle => $info) {
+      $elements[$entity_type][$bundle]['custom:html'] = array(
+        'label' => t('Custom HTML'),
+        'class' => 'FlexiformElementCustomHtml',
+        'type' => 'custom_html',
+        'group' => 'Custom',
+      );
+
+      if (!empty($entity_panes[$entity_type])) {
+        foreach ($entity_panes[$entity_type] as $name => $pinfo) {
+          $elements[$entity_type][$bundle]['ctools:'.$name] = array(
+            'label' => $pinfo['title'],
+            'class' => 'FlexiformElementCtoolsContent',
+            'type' => 'ctools_content',
+            'group' => $pinfo['category'],
+            'content_type' => $pinfo['type'],
+            'sub_type' => $pinfo['subtype'],
+          );
+        }
+      }
+    }
   }
 
   return $elements;

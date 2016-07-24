@@ -37,6 +37,71 @@ class FlexiformWebformUIController extends EntityDefaultUIController {
   /**
    * {@inheritdoc}
    */
+  public function overviewForm($form, &$form_state, $conditions = array()) {
+    $collapsed = TRUE;
+    if (!empty($_GET['form_group'])) {
+      $conditions['form_group'] = $_GET['form_group'];
+      $collapsed = FALSE;
+    }
+
+    $form['filter'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Filter'),
+      '#collapsible' => TRUE,
+      '#collapsed' => $collapsed,
+    );
+    $form['filter']['#id'] = 'flexiform-filter-form';
+
+    $groups = flexiform_get_groups();
+    if (count($groups) > 0) {
+      $form['filter']['form_group'] = array(
+        '#title' => t('Filter by group'),
+        '#type' => 'select',
+        '#default_value' => !empty($conditions['form_group']) ? $conditions['form_group'] : 'general',
+      );
+      foreach ($groups as $group => $info) {
+        $form['filter']['form_group']['#options'][$group] = $info['label'];
+      }
+    }
+    $form['filter']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Filter'),
+      '#name' => '', // prevent from showing up in $_GET.
+    );
+
+    // Overridden to allow the passing of conditions through.
+    $form['table'] = $this->overviewTable($conditions);
+    $form['pager'] = array('#theme' => 'pager');
+
+    $form['#method'] = 'get';
+    $form['#submit'][] = 'flexiform_form_submit_rebuild';
+    return $form;
+  }
+
+  /**
+   * Overrides overviewTable();
+   */
+  public function overviewTable($conditions = array()) {
+    $entities = entity_load($this->entityType, FALSE, $conditions);
+    ksort($entities);
+
+    $rows = array();
+    foreach ($entities as $entity) {
+      $rows[] = $this->overviewTableRow($conditions, entity_id($this->entityType, $entity), $entity);
+    }
+
+    $render = array(
+      '#theme' => 'table',
+      '#header' => $this->overviewTableHeaders($conditions, $rows),
+      '#rows' => $rows,
+      '#empty' => t('None.'),
+    );
+    return $render;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function overviewTableRow($conditions, $id, $entity, $additional_cols = array()) {
     $row = parent::overviewTableRow($conditions, $id, $entity, $additional_cols);
     // We want to put 2 operations in the table before clone, export and revert.
@@ -86,6 +151,32 @@ function flexiform_webform_form($form, &$form_state, $webform, $op = 'edit') {
     '#description' => t('A unique machine-readable name for this webform. It must only contain lowercase letters, numbers, and underscores.'),
     '#disabled' => empty($webform->is_new),
   );
+
+  $form['form_group'] = array(
+    '#title' => t('Group'),
+    '#description' => t('Select a group for this webform. Some groups do special things with forms.'),
+  );
+
+  $groups = flexiform_get_groups();
+  if (!empty($webform->is_new) && count($groups) > 1) {
+    $form['form_group']['#type'] = 'select';
+    $form['form_group']['#default_value'] = isset($webform->form_group) ? $webform->form_group: FALSE;
+    $form['form_group']['#required'] = TRUE;
+    foreach ($groups as $group => $info) {
+      $form['form_group']['#options'][$group] = $info['label'];
+    }
+  }
+  else {
+    $group = !empty($webform->form_group) ? $webform->form_group: key($groups);
+
+    $form['form_group_display'] = $form['form_group'];
+    $form['form_group_display']['#type'] = 'item';
+    $form['form_group_display']['#markup'] = $groups[$group]['label'];
+
+    $form['form_group']['#type'] = 'value';
+    $form['form_group']['#value'] = $group;
+  }
+
 
   // Extended Cloning Options
   $form['cloned_from'] = array(
@@ -194,15 +285,18 @@ function flexiform_webform_form_submit(&$form, &$form_state) {
   $forms = array_filter($form_state['values']['clone_flexiforms']);
   $cloned = array();
   $original = $form_state['values']['cloned_from'];
+  $original_webform = entity_load_single('flexiform_webform', $original);
   foreach (entity_load('flexiform', $forms) as $oldform) {
     $newForm = clone $oldform;
 
     // Clear id
     unset($newForm->id);
 
-    // Work out new machine name.
+    // Work out new label and machine name.
     $new_form = str_replace($original, $webform->webform, $oldform->form, $count);
     $newForm->form = (!empty($count)) ? $new_form : $newForm->form . '_' . $webform->webform;
+    $new_label = str_replace($original_webform->label, $webform->label, $oldform->label, $count);
+    $newForm->label = (!empty($count)) ? $new_label : $oldform->label . ' (' . $webform->label . ')';
 
     // Stop from getting too long
     if (strlen($newForm->form) > 252) {
@@ -229,17 +323,27 @@ function flexiform_webform_form_submit(&$form, &$form_state) {
     $newForm->base_entity_bundle = $webform->webform;
     $newForm->entities['base_entity']['bundle'] = $webform->webform;
 
+    $newForm->form_group = $webform->form_group;
+
     // Work out menu paths:
     $displays = array(
-      'flexiform_create_entity_page',
-      'flexiform_edit_entity_page'
+      'FlexiformDisplayCreatePage',
+      'FlexiformDisplayEditPage'
     );
 
     foreach ($displays as $display) {
-      if ($newForm->displays[$display]['enabled']) {
+      if (!empty($newForm->displays[$display]['path'])) {
         $path = &$newForm->displays[$display]['path'];
         $new_path = str_replace($original, $webform->webform, $path, $count);
         $path = (!empty($count)) ? $new_path : $path . '/' . $webform->webform;
+      }
+
+      if (!empty($newForm->displays[$display]['title'])) {
+        $title = &$newForm->displays[$display]['title'];
+        $new_title = str_replace($original_webform->label, $webform->label, $title, $count);
+        if (!empty($count)) {
+          $title = $new_title;
+        }
       }
     }
 
@@ -260,6 +364,48 @@ function flexiform_webform_form_submit(&$form, &$form_state) {
     );
     $message .= drupal_render($list);
     drupal_set_message($message);
+  }
+
+  // If the module is enabled clone Panelizer Settings
+  if (module_exists('panelizer')) {
+    $settings = variable_get('panelizer_defaults_flexiform_webform_submission_'.$original, array());
+    variable_set('panelizer_defaults_flexiform_webform_submission_'.$webform->webform, $settings);
+
+    $handler = panelizer_entity_plugin_get_handler('flexiform_webform_submission');
+    foreach ($settings['view modes'] as $mode => $info) {
+      if (empty($info['default'])) {
+        continue;
+      }
+
+      $panelizer = $handler->get_default_panelizer_object($original.'.'.$mode, 'flexiform_webform_submission:'.$original.':default:'.$mode);
+      $panelizer_clone = clone $panelizer;
+      $panelizer_clone->pnid = NULL;
+      $panelizer_clone->did = NULL;
+      $panelizer_clone->export_type = NULL;
+      $panelizer_clone->panelizer_key = $webform->webform;
+      $panelizer_clone->name = 'flexiform_webform_submission:'.$webform->webform.':default';
+
+      if ($mode != 'page_manager') {
+        $panelizer_clone->name .= ":{$mode}";
+      }
+
+      // In order to ensure we don't actually use and modify the default display,
+      // we export and re-import it.
+      $code = panels_export_display($panelizer->display);
+      ob_start();
+      eval($code);
+      ob_end_clean();
+
+      $panelizer_clone->display = $display;
+
+      // First write the display
+      panels_save_display($panelizer_clone->display);
+
+      // Make sure we have the new did.
+      $panelizer_clone->did = $panelizer_clone->display->did;
+
+      ctools_export_crud_save('panelizer_defaults', $panelizer_clone);
+    }
   }
 }
 

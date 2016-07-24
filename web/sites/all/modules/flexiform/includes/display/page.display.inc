@@ -17,11 +17,13 @@ abstract class FlexiformDisplayPageBase extends FlexiformDisplayBase {
 
     $items[$this->configuration['path']] = array(
       'title callback' => 'flexiform_page_title',
-      'title arguments' => array($this->flexiform->form),
+      'title arguments' => $this->getMenuArguments(),
       'page callback' => 'flexiform_page_wrapper',
-      'page arguments' => array($this->flexiform->form),
-      'access callback' => TRUE,
+      'page arguments' => $this->getMenuArguments(),
+      'access callback' => 'flexiform_page_access',
+      'access arguments' => $this->getMenuArguments(),
       'file' => 'flexiform.pages.inc',
+      'weight' => isset($this->configuration['weight']) ? $this->configuration['weight'] : 0,
     );
 
     // Add the menu name if we have one.
@@ -43,6 +45,43 @@ abstract class FlexiformDisplayPageBase extends FlexiformDisplayBase {
     }
 
     return $items;
+  }
+
+  /**
+   * Get the page/title arguments for hook_menu.
+   *
+   * @see FlexiformDisplayPageBase::hook_menu()
+   */
+  protected function getMenuArguments() {
+    return array(
+      $this->getFlexiform()->form,
+      get_class($this),
+      NULL,
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPath($base_entity_id = NULL) {
+    // Get hold of all the info.
+    $items = $this->hook_menu();
+    $path = explode('/', reset(array_keys($items)));
+    $item = reset($items);
+    $args = func_get_args();
+
+    // Deal with placeholders.
+    foreach ($item['page arguments'] as $pos => $arg) {
+      if (is_int($arg)) {
+        $path[$arg] = array_shift($args);
+      }
+    }
+
+    // Append the rest of the arguments.
+    $path = array_merge($path, $args);
+
+    // Re-combine and return.
+    return implode('/', $path);
   }
 
   /**
@@ -75,18 +114,26 @@ abstract class FlexiformDisplayPageBase extends FlexiformDisplayBase {
       '#title' => t('Menu'),
       '#type' => 'select',
       '#description' => t('Select the menu the item should be put in.'),
-      '#options' => menu_get_menus(),
+      '#options' => module_exists('menu') ? menu_get_menus() : menu_list_system_menus(),
       '#default_value' => isset($this->configuration['menu_name']) ? $this->configuration['menu_name'] : NULL,
       '#states' => array(
         'visible' => array(':input[name="displays[flexiform_create_entity_page][type]"]' => array('!value' => MENU_CALLBACK)),
       ),
     );
 
+    $form['weight'] = array(
+      '#title' => t('Weight'),
+      '#type' => 'weight',
+      '#description' => t('Heavier items will sink and lighter items will be positioned near the top.'),
+      '#default_value' => isset($this->configuration['weight']) ? $this->configuration['weight'] : 0,
+      '#delta' => 30,
+    );
+
     $form['access'] = array(
       '#type' => 'fieldset',
       '#title' => t('Access'),
       '#tree' => TRUE,
-      '#description' => t('Alter settings for who can access this page.'),
+      '#description' => t('Alter settings for who can access this page. These settings will override the main flexiform access settings.'),
       '#collapsible' => TRUE,
       '#collapsed' => TRUE,
     );
@@ -94,7 +141,7 @@ abstract class FlexiformDisplayPageBase extends FlexiformDisplayBase {
     $form['access']['permission'] = array(
       '#type' => 'select',
       '#title' => t('Required Permission'),
-      '#description' => t('Only users with the following permission will be able to access this form.'),
+      '#description' => t('Only users with the following permission will be able to access this form. <strong>N.B. It is recommended that you use the access controls below. This option should only be used if different permissions are required for different displays.</strong>'),
       '#options' => $this->getPermissionOptions(),
       '#empty_option' => t(' - None - '),
       '#default_value' => isset($this->configuration['access']['permission']) ? $this->configuration['access']['permission'] : '',
